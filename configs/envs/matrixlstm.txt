@@ -1,0 +1,6 @@
+-r common.txt
+torch
+torchvision
+pybind11
+# Official optical-flow reproduction still needs the upstream TensorFlow/Docker path.
+# This env file is for the future PyTorch adapter route inside the unified benchmark.

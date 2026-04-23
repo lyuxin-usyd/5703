@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mvsec-benchmark"
+version = "0.1.0"
+description = "Unified MVSEC benchmark scaffold for COMP5703"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
