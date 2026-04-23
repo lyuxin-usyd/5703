@@ -82,9 +82,46 @@ cd D:\event-benchmark\mvsec-benchmark
 python scripts/run_linear_suite.py
 ```
 
+## Recommended real-data plan
+
+### Unified flow head
+
+For the real MVSEC benchmark, the recommended choice is a single shared
+EV-FlowNet-like decoder for all six runnable methods.
+
+Why:
+
+- it keeps the benchmark focused on representation quality instead of changing
+  both the representation and the downstream optical-flow network at once
+- it is easier to explain in the final report
+- it is a much fairer comparison than letting each method pick a different
+  decoder or training stack
+
+The current `LinearFlowRegressor` is only the local bring-up head. It exists to
+prove that the full `data -> adapter -> train -> evaluate` loop already works
+before renting GPUs.
+
+### Minimal real-data protocol before renting more time
+
+Before running the full benchmark on a rented GPU machine, fix a tiny real-data
+smoke-test protocol and do not change it casually:
+
+1. dataset: `MVSEC indoor_flying1`
+2. metrics: `AEE + Outlier`
+3. methods: start with `EST` and `Event Pre-training`
+4. decoder: one shared EV-FlowNet-like head
+5. goal: verify the real MVSEC training and evaluation path, not paper numbers
+
+After that smoke test is stable, move to the full MVSEC protocol:
+
+1. training: `outdoor_day1 + outdoor_day2`
+2. testing: `indoor_flying1/2/3`
+3. methods: `EST`, `ERGO`, `Event Pre-training`, `GET`, `MatrixLSTM`, `EvRepSL`
+4. keep the same flow head and the same metrics
+
 ## Next implementation steps
 
-1. replace synthetic data with real MVSEC loader
-2. replace the linear flow head with EV-FlowNet or another unified decoder
+1. replace the linear flow head with a shared EV-FlowNet-like decoder
+2. run the `indoor_flying1` real-data smoke test
 3. progressively upgrade first-pass adapters toward paper-faithful code paths
-4. add small real-data tests once `indoor_flying1` is available
+4. expand to the full MVSEC train/test split once the smoke test is stable
