@@ -82,6 +82,32 @@ cd D:\event-benchmark\mvsec-benchmark
 python scripts/run_linear_suite.py
 ```
 
+## Shared learned decoder path
+
+The repository now also has a shared learned optical-flow decoder path for the
+real benchmark direction:
+
+- model: `src/mvsec_benchmark/models/evflownet_like.py`
+- pipeline entry: `run_torch_benchmark(...)`
+- script: `scripts/run_torch_benchmark.py`
+
+This path is intended to become the pre-rental and post-rental shared decoder
+for real MVSEC experiments.
+
+Example:
+
+```bash
+cd D:\event-benchmark\mvsec-benchmark
+.venv\Scripts\python.exe scripts\run_torch_benchmark.py --adapter est --use-mock --epochs 5
+```
+
+Run all six runnable methods through the shared learned decoder:
+
+```bash
+cd D:\event-benchmark\mvsec-benchmark
+.venv\Scripts\python.exe scripts\run_torch_suite.py --epochs 3
+```
+
 ## Recommended real-data plan
 
 ### Unified flow head
@@ -121,7 +147,7 @@ After that smoke test is stable, move to the full MVSEC protocol:
 
 ## Next implementation steps
 
-1. replace the linear flow head with a shared EV-FlowNet-like decoder
-2. run the `indoor_flying1` real-data smoke test
+1. run the shared EV-FlowNet-like path on `indoor_flying1`
+2. stabilize one real-data smoke test with `EST` and `Event Pre-training`
 3. progressively upgrade first-pass adapters toward paper-faithful code paths
 4. expand to the full MVSEC train/test split once the smoke test is stable

@@ -1,9 +1,16 @@
 import tempfile
 import unittest
 from pathlib import Path
+import importlib.util
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 from mvsec_benchmark.data import load_mvsec_windows, write_mock_mvsec_pair
-from mvsec_benchmark.pipeline import run_linear_benchmark
+from mvsec_benchmark.pipeline import run_linear_benchmark, run_torch_benchmark
 
 
 class PipelineTest(unittest.TestCase):
@@ -40,6 +47,31 @@ class PipelineTest(unittest.TestCase):
                 self.assertEqual(result.adapter_name, method)
                 self.assertGreater(result.valid_count, 0)
                 self.assertTrue(result.aee == result.aee)
+
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "torch is not installed in this interpreter")
+    def test_torch_benchmark_runs_on_mock_mvsec(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            h5_path, flow_path = write_mock_mvsec_pair(Path(tmpdir), num_events=1000)
+            windows = load_mvsec_windows(
+                h5_path=h5_path,
+                flow_path=flow_path,
+                window_size=200,
+                stride=200,
+                max_windows=5,
+            )
+            result = run_torch_benchmark(
+                windows,
+                adapter_name="est",
+                train_windows=3,
+                epochs=2,
+                base_channels=8,
+                batch_size=2,
+                device="cpu",
+            )
+            self.assertEqual(result.adapter_name, "est")
+            self.assertEqual(result.eval_windows, 2)
+            self.assertGreater(result.valid_count, 0)
+            self.assertTrue(result.aee == result.aee)
 
 
 if __name__ == "__main__":
