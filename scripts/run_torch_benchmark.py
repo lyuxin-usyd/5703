@@ -29,9 +29,16 @@ def main() -> None:
     parser.add_argument("--base-channels", type=int, default=16)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument("--disable-cudnn", action="store_true", help="Disable cuDNN for GPUs with unsupported conv kernels.")
+    parser.add_argument("--output", type=Path, default=None, help="Optional path for saving the JSON benchmark result.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--use-mock", action="store_true")
     args = parser.parse_args()
+
+    if args.disable_cudnn:
+        import torch
+
+        torch.backends.cudnn.enabled = False
 
     if args.use_mock or args.h5 is None or args.flow is None:
         outdir = ROOT / "examples" / "mock_mvsec"
@@ -57,7 +64,11 @@ def main() -> None:
         device=args.device,
         seed=args.seed,
     )
-    print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+    payload = json.dumps(result.__dict__, indent=2, sort_keys=True)
+    print(payload)
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(payload + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

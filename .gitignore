@@ -6,6 +6,7 @@ venv/
 env/
 env_*/
 /outputs/
+/results/
 /data/
 /refs/
 /examples/
