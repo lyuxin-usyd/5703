@@ -13,12 +13,12 @@ def _time_to_seconds(value: object) -> float:
     return float(sec) + float(nsec) * 1e-9
 
 
-def _register_bag_types(reader: object) -> object:
+def _register_bag_types(connections: list[object]) -> object:
     from rosbags.typesys import Stores, get_typestore, get_types_from_msg
 
     typestore = get_typestore(Stores.EMPTY)
     types = {}
-    for conn in reader.connections:
+    for conn in connections:
         if conn.msgdef:
             types.update(get_types_from_msg(conn.msgdef, conn.msgtype))
     typestore.register(types)
@@ -76,8 +76,8 @@ def main() -> None:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with Reader(args.bag) as reader:
-        typestore = _register_bag_types(reader)
         connections = _select_event_connections(reader, args.topic)
+        typestore = _register_bag_types(connections)
         print("event topics:")
         for conn in connections:
             print(f"  {conn.topic} ({conn.msgtype}, {conn.msgcount} messages)")
