@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 
@@ -35,9 +36,7 @@ class EVFlowNetLike(nn.Module):
 
         self.bottleneck = ConvBlock(base_channels * 2, base_channels * 4)
 
-        self.up2 = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False)
         self.dec2 = ConvBlock(base_channels * 4 + base_channels * 2, base_channels * 2)
-        self.up1 = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False)
         self.dec1 = ConvBlock(base_channels * 2 + base_channels, base_channels)
 
         self.head = nn.Conv2d(base_channels, 2, kernel_size=1)
@@ -47,11 +46,11 @@ class EVFlowNetLike(nn.Module):
         s2 = self.enc2(self.pool1(s1))
         b = self.bottleneck(self.pool2(s2))
 
-        d2 = self.up2(b)
+        d2 = F.interpolate(b, size=s2.shape[-2:], mode="bilinear", align_corners=False)
         d2 = torch.cat([d2, s2], dim=1)
         d2 = self.dec2(d2)
 
-        d1 = self.up1(d2)
+        d1 = F.interpolate(d2, size=s1.shape[-2:], mode="bilinear", align_corners=False)
         d1 = torch.cat([d1, s1], dim=1)
         d1 = self.dec1(d1)
         return self.head(d1)
