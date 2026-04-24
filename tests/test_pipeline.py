@@ -14,6 +14,26 @@ from mvsec_benchmark.pipeline import run_linear_benchmark, run_torch_benchmark
 
 
 class PipelineTest(unittest.TestCase):
+    def test_loads_official_gt_flow_dist_npz_shape(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            flow_path = Path(tmpdir) / "indoor_flying1_gt_flow_dist.npz"
+            x_flow = [[1.0, 2.0], [3.0, 4.0]]
+            y_flow = [[-1.0, -2.0], [-3.0, -4.0]]
+            import numpy as np
+
+            np.savez_compressed(
+                flow_path,
+                timestamps=np.asarray([0.0]),
+                x_flow_dist=np.asarray([x_flow], dtype=np.float32),
+                y_flow_dist=np.asarray([y_flow], dtype=np.float32),
+            )
+            from mvsec_benchmark.data.mvsec import load_mvsec_flow
+
+            flow = load_mvsec_flow(flow_path)
+            self.assertEqual(flow.shape, (1, 2, 2, 2))
+            self.assertAlmostEqual(float(flow[0, 0, 1, 0]), 2.0)
+            self.assertAlmostEqual(float(flow[0, 1, 0, 1]), -3.0)
+
     def test_linear_benchmark_runs_on_mock_mvsec(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             h5_path, flow_path = write_mock_mvsec_pair(Path(tmpdir), num_events=1000)

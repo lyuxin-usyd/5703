@@ -75,7 +75,15 @@ def load_mvsec_events(h5_path: str | Path) -> np.ndarray:
 def load_mvsec_flow(flow_path: str | Path) -> np.ndarray:
     data = np.load(flow_path)
     if isinstance(data, np.lib.npyio.NpzFile):
-        if "flow" in data:
+        if "x_flow_dist" in data and "y_flow_dist" in data:
+            arr = np.stack(
+                [
+                    np.asarray(data["x_flow_dist"], dtype=np.float32),
+                    np.asarray(data["y_flow_dist"], dtype=np.float32),
+                ],
+                axis=-1,
+            )
+        elif "flow" in data:
             arr = data["flow"]
         else:
             first_key = list(data.keys())[0]
