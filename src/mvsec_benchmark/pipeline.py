@@ -90,6 +90,7 @@ def run_torch_benchmark(
     learning_rate: float = 1e-3,
     base_channels: int = 16,
     batch_size: int = 2,
+    eval_batch_size: int | None = None,
     device: str = "cpu",
     seed: int = 42,
     return_window_metrics: bool = False,
@@ -128,24 +129,30 @@ def run_torch_benchmark(
 
     metrics: list[FlowMetrics] = []
     window_metrics: list[dict[str, float | int]] = []
+    eval_batch = int(eval_batch_size or batch_size)
+    if eval_batch < 1:
+        raise ValueError("eval_batch_size must be >= 1")
     model.eval()
     with torch.no_grad():
-        pred_eval = model(x_eval).detach().cpu().numpy()
-    for eval_index, (pred, sample) in enumerate(zip(pred_eval, eval_samples)):
-        pred_hw2 = np.moveaxis(pred, 0, -1)
-        metric = compute_flow_metrics(pred_hw2, sample.gt_flow)
-        metrics.append(metric)
-        if return_window_metrics:
-            window_metrics.append(
-                {
-                    "sample_index": int(len(train_samples) + eval_index),
-                    "eval_index": int(eval_index),
-                    "aee": float(metric.aee),
-                    "outlier_percent": float(metric.outlier_percent),
-                    "valid_count": int(metric.valid_count),
-                    "outlier_count": int(metric.outlier_count),
-                }
-            )
+        for start in range(0, int(x_eval.shape[0]), eval_batch):
+            pred_batch = model(x_eval[start:start + eval_batch]).detach().cpu().numpy()
+            for offset, pred in enumerate(pred_batch):
+                eval_index = start + offset
+                sample = eval_samples[eval_index]
+                pred_hw2 = np.moveaxis(pred, 0, -1)
+                metric = compute_flow_metrics(pred_hw2, sample.gt_flow)
+                metrics.append(metric)
+                if return_window_metrics:
+                    window_metrics.append(
+                        {
+                            "sample_index": int(len(train_samples) + eval_index),
+                            "eval_index": int(eval_index),
+                            "aee": float(metric.aee),
+                            "outlier_percent": float(metric.outlier_percent),
+                            "valid_count": int(metric.valid_count),
+                            "outlier_count": int(metric.outlier_count),
+                        }
+                    )
 
     mean_aee = sum(m.aee for m in metrics) / len(metrics)
     mean_outlier = sum(m.outlier_percent for m in metrics) / len(metrics)

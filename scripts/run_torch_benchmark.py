@@ -28,6 +28,7 @@ def main() -> None:
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--base-channels", type=int, default=16)
     parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--eval-batch-size", type=int, default=None)
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--disable-cudnn", action="store_true", help="Disable cuDNN for GPUs with unsupported conv kernels.")
     parser.add_argument("--output", type=Path, default=None, help="Optional path for saving the JSON benchmark result.")
@@ -66,6 +67,7 @@ def main() -> None:
         learning_rate=args.lr,
         base_channels=args.base_channels,
         batch_size=args.batch_size,
+        eval_batch_size=args.eval_batch_size,
         device=args.device,
         seed=args.seed,
         return_window_metrics=args.window_metrics,

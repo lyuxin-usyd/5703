@@ -111,6 +111,7 @@ class PipelineTest(unittest.TestCase):
                 epochs=1,
                 base_channels=8,
                 batch_size=2,
+                eval_batch_size=1,
                 device="cpu",
                 return_window_metrics=True,
             )
