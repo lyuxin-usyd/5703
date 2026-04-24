@@ -110,6 +110,34 @@ cd D:\event-benchmark\mvsec-benchmark
 
 ## Recommended real-data plan
 
+### AutoDL / UPenn ROS bag route
+
+On AutoDL, direct Google Drive downloads for the official MVSEC HDF5 and
+`*_gt_flow_dist.npz` files can be unreliable. The UPenn-hosted ROS bag files are
+reachable and can be downloaded with `aria2`:
+
+```bash
+mkdir -p /root/autodl-tmp/capstone/data/mvsec/indoor_flying1
+cd /root/autodl-tmp/capstone/data/mvsec/indoor_flying1
+aria2c -x 16 -s 16 -k 1M --file-allocation=none \
+  -o indoor_flying1_data.bag \
+  https://visiondata.cis.upenn.edu/mvsec/indoor_flying/indoor_flying1_data.bag
+```
+
+Inspect the bag and export left-camera events into a lightweight HDF5 file:
+
+```bash
+python scripts/inspect_rosbag.py /root/autodl-tmp/capstone/data/mvsec/indoor_flying1/indoor_flying1_data.bag
+python scripts/convert_mvsec_bag_events.py \
+  /root/autodl-tmp/capstone/data/mvsec/indoor_flying1/indoor_flying1_data.bag \
+  --topic /davis/left/events \
+  --max-events 200000 \
+  --output /root/autodl-tmp/capstone/data/mvsec/indoor_flying1/indoor_flying1_left_events_200k.h5
+```
+
+This route verifies real MVSEC events without a ROS installation. It still needs
+real flow ground truth before producing paper-comparable AEE numbers.
+
 ### Unified flow head
 
 For the real MVSEC benchmark, the recommended choice is a single shared
