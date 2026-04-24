@@ -8,6 +8,46 @@ from pathlib import Path
 import numpy as np
 
 
+HEADER_MSG = """\
+uint32 seq
+time stamp
+string frame_id
+"""
+
+IMAGE_MSG = """\
+std_msgs/Header header
+uint32 height
+uint32 width
+string encoding
+uint8 is_bigendian
+uint32 step
+uint8[] data
+"""
+
+POINT_MSG = """\
+float64 x
+float64 y
+float64 z
+"""
+
+QUATERNION_MSG = """\
+float64 x
+float64 y
+float64 z
+float64 w
+"""
+
+POSE_MSG = """\
+geometry_msgs/Point position
+geometry_msgs/Quaternion orientation
+"""
+
+POSE_STAMPED_MSG = """\
+std_msgs/Header header
+geometry_msgs/Pose pose
+"""
+
+
 def _time_to_seconds(value: object) -> float:
     sec = getattr(value, "sec", getattr(value, "secs", 0))
     nsec = getattr(value, "nanosec", getattr(value, "nsec", 0))
@@ -122,7 +162,16 @@ def _register_types(connections: list[object]) -> object:
     typestore = get_typestore(Stores.EMPTY)
     typs = {}
     for conn in connections:
-        if conn.msgdef:
+        if conn.msgtype == "sensor_msgs/msg/Image":
+            typs.update(get_types_from_msg(HEADER_MSG, "std_msgs/msg/Header"))
+            typs.update(get_types_from_msg(IMAGE_MSG, "sensor_msgs/msg/Image"))
+        elif conn.msgtype == "geometry_msgs/msg/PoseStamped":
+            typs.update(get_types_from_msg(HEADER_MSG, "std_msgs/msg/Header"))
+            typs.update(get_types_from_msg(POINT_MSG, "geometry_msgs/msg/Point"))
+            typs.update(get_types_from_msg(QUATERNION_MSG, "geometry_msgs/msg/Quaternion"))
+            typs.update(get_types_from_msg(POSE_MSG, "geometry_msgs/msg/Pose"))
+            typs.update(get_types_from_msg(POSE_STAMPED_MSG, "geometry_msgs/msg/PoseStamped"))
+        elif conn.msgdef:
             typs.update(get_types_from_msg(conn.msgdef, conn.msgtype))
     typestore.register(typs)
     return typestore
