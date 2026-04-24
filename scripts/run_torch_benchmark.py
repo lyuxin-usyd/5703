@@ -33,6 +33,11 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=None, help="Optional path for saving the JSON benchmark result.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--use-mock", action="store_true")
+    parser.add_argument(
+        "--window-metrics",
+        action="store_true",
+        help="Include per-evaluation-window metrics in the JSON output.",
+    )
     args = parser.parse_args()
 
     if args.disable_cudnn:
@@ -63,8 +68,10 @@ def main() -> None:
         batch_size=args.batch_size,
         device=args.device,
         seed=args.seed,
+        return_window_metrics=args.window_metrics,
     )
-    payload = json.dumps(result.__dict__, indent=2, sort_keys=True)
+    result_dict = {key: value for key, value in result.__dict__.items() if value is not None}
+    payload = json.dumps(result_dict, indent=2, sort_keys=True)
     print(payload)
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)

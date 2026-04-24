@@ -19,6 +19,7 @@ class BenchmarkResult:
     aee: float
     outlier_percent: float
     valid_count: int
+    window_metrics: list[dict[str, float | int]] | None = None
 
 
 def _split_samples(samples: list[FlowWindowSample], train_windows: int) -> tuple[list[FlowWindowSample], list[FlowWindowSample]]:
@@ -91,6 +92,7 @@ def run_torch_benchmark(
     batch_size: int = 2,
     device: str = "cpu",
     seed: int = 42,
+    return_window_metrics: bool = False,
 ) -> BenchmarkResult:
     try:
         import torch
@@ -125,12 +127,25 @@ def run_torch_benchmark(
             optimizer.step()
 
     metrics: list[FlowMetrics] = []
+    window_metrics: list[dict[str, float | int]] = []
     model.eval()
     with torch.no_grad():
         pred_eval = model(x_eval).detach().cpu().numpy()
-    for pred, sample in zip(pred_eval, eval_samples):
+    for eval_index, (pred, sample) in enumerate(zip(pred_eval, eval_samples)):
         pred_hw2 = np.moveaxis(pred, 0, -1)
-        metrics.append(compute_flow_metrics(pred_hw2, sample.gt_flow))
+        metric = compute_flow_metrics(pred_hw2, sample.gt_flow)
+        metrics.append(metric)
+        if return_window_metrics:
+            window_metrics.append(
+                {
+                    "sample_index": int(len(train_samples) + eval_index),
+                    "eval_index": int(eval_index),
+                    "aee": float(metric.aee),
+                    "outlier_percent": float(metric.outlier_percent),
+                    "valid_count": int(metric.valid_count),
+                    "outlier_count": int(metric.outlier_count),
+                }
+            )
 
     mean_aee = sum(m.aee for m in metrics) / len(metrics)
     mean_outlier = sum(m.outlier_percent for m in metrics) / len(metrics)
@@ -143,4 +158,5 @@ def run_torch_benchmark(
         aee=float(mean_aee),
         outlier_percent=float(mean_outlier),
         valid_count=int(valid_count),
+        window_metrics=window_metrics if return_window_metrics else None,
     )

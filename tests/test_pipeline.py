@@ -93,6 +93,32 @@ class PipelineTest(unittest.TestCase):
             self.assertGreater(result.valid_count, 0)
             self.assertTrue(result.aee == result.aee)
 
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "torch is not installed in this interpreter")
+    def test_torch_benchmark_can_return_window_metrics(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            h5_path, flow_path = write_mock_mvsec_pair(Path(tmpdir), num_events=1200)
+            windows = load_mvsec_windows(
+                h5_path=h5_path,
+                flow_path=flow_path,
+                window_size=200,
+                stride=200,
+                max_windows=6,
+            )
+            result = run_torch_benchmark(
+                windows,
+                adapter_name="est",
+                train_windows=4,
+                epochs=1,
+                base_channels=8,
+                batch_size=2,
+                device="cpu",
+                return_window_metrics=True,
+            )
+            self.assertIsNotNone(result.window_metrics)
+            self.assertEqual(len(result.window_metrics or []), result.eval_windows)
+            self.assertEqual((result.window_metrics or [])[0]["sample_index"], result.train_windows)
+            self.assertGreater((result.window_metrics or [])[0]["valid_count"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
