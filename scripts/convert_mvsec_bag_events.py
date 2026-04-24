@@ -7,6 +7,27 @@ import h5py
 import numpy as np
 
 
+EVENT_ARRAY_MSG = """\
+std_msgs/Header header
+uint32 height
+uint32 width
+dvs_msgs/Event[] events
+"""
+
+EVENT_MSG = """\
+uint16 x
+uint16 y
+time ts
+bool polarity
+"""
+
+HEADER_MSG = """\
+uint32 seq
+time stamp
+string frame_id
+"""
+
+
 def _time_to_seconds(value: object) -> float:
     sec = getattr(value, "sec", getattr(value, "secs", 0))
     nsec = getattr(value, "nanosec", getattr(value, "nsec", 0))
@@ -19,7 +40,11 @@ def _register_bag_types(connections: list[object]) -> object:
     typestore = get_typestore(Stores.EMPTY)
     types = {}
     for conn in connections:
-        if conn.msgdef:
+        if conn.msgtype == "dvs_msgs/msg/EventArray":
+            types.update(get_types_from_msg(HEADER_MSG, "std_msgs/msg/Header"))
+            types.update(get_types_from_msg(EVENT_MSG, "dvs_msgs/msg/Event"))
+            types.update(get_types_from_msg(EVENT_ARRAY_MSG, "dvs_msgs/msg/EventArray"))
+        elif conn.msgdef:
             types.update(get_types_from_msg(conn.msgdef, conn.msgtype))
     typestore.register(types)
     return typestore
