@@ -5,10 +5,10 @@ __pycache__/
 venv/
 env/
 env_*/
-outputs/
-data/
-refs/
-examples/
+/outputs/
+/data/
+/refs/
+/examples/
 *.pt
 *.pth
 *.ckpt
