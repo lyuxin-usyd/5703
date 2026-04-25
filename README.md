@@ -16,10 +16,16 @@ Current status:
 - per-method environment requirement files
 - synthetic smoke test that runs without MVSEC downloads
 - minimal MVSEC-style loader and a CPU-friendly linear flow benchmark loop
+- AutoDL handoff and current experiment state in `docs/CLAUDE_CODE_HANDOFF.md`
 
 This is **not** yet a paper-faithful full reproduction of all seven methods.
 It is the benchmark skeleton that lets the team implement each method in a
 consistent place.
+
+For continuing the AutoDL work, start from
+`docs/CLAUDE_CODE_HANDOFF.md`. That file records which runs are already done,
+which files exist on the data disk, and the exact next command for the
+outdoor-train / indoor-test protocol.
 
 ## Layout
 
