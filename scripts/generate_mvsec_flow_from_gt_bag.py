@@ -213,7 +213,7 @@ def main() -> None:
     parser.add_argument("--depth-topic", type=str, default="/davis/left/depth_image_rect")
     parser.add_argument("--odom-topic", type=str, default="/davis/left/odometry")
     parser.add_argument("--start-index", type=int, default=1)
-    parser.add_argument("--max-frames", type=int, default=20)
+    parser.add_argument("--max-frames", type=int, default=None)
     args = parser.parse_args()
 
     try:
@@ -237,10 +237,18 @@ def main() -> None:
                 depths.append(_image_to_array(msg))
             elif conn.topic == args.odom_topic:
                 poses.append(_pose_from_message(msg))
-            if len(depths) >= args.start_index + args.max_frames and len(poses) >= args.start_index + args.max_frames:
+            if (
+                args.max_frames is not None
+                and len(depths) >= args.start_index + args.max_frames
+                and len(poses) >= args.start_index + args.max_frames
+            ):
                 break
 
-    stop = min(len(depths), len(poses), args.start_index + args.max_frames)
+    stop = (
+        min(len(depths), len(poses))
+        if args.max_frames is None
+        else min(len(depths), len(poses), args.start_index + args.max_frames)
+    )
     if stop <= args.start_index:
         raise ValueError("Not enough synchronized depth/odometry messages for requested range.")
 
