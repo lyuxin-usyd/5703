@@ -7,7 +7,7 @@ This repository is intentionally staged:
 1. build a common task interface
 2. attach seven paper-specific representation adapters
 3. verify small synthetic smoke tests locally
-4. later plug in real MVSEC files and GPU training
+4. run the adapted MVSEC optical-flow protocol on real data
 
 Current status:
 
@@ -16,16 +16,47 @@ Current status:
 - per-method environment requirement files
 - synthetic smoke test that runs without MVSEC downloads
 - minimal MVSEC-style loader and a CPU-friendly linear flow benchmark loop
+- real MVSEC smoke, indoor-only controlled runs, and the formal original-style
+  AutoDL run are archived and documented
 - AutoDL handoff and current experiment state in `docs/CLAUDE_CODE_HANDOFF.md`
+- review of remaining scientific limitations in
+  `docs/MVSEC_TASK_REVIEW_20260426.md`
 
-This is **not** yet a paper-faithful full reproduction of all seven methods.
-It is the benchmark skeleton that lets the team implement each method in a
-consistent place.
+This is **not** an exact paper-faithful reproduction of all seven methods. It is
+a unified adapted MVSEC benchmark: six runnable event representations are
+compared with the same shared EV-FlowNet-like decoder, while OmniEvent remains
+reported-only because its current public code path is not runnable for this
+downstream task.
 
-For continuing the AutoDL work, start from
+For continuing or auditing the AutoDL work, start from
 `docs/CLAUDE_CODE_HANDOFF.md`. That file records which runs are already done,
-which files exist on the data disk, and the exact next command for the
+which files exist on the data disk, and the exact command for the completed
 outdoor-train / indoor-test protocol.
+
+## Current formal result
+
+The main result currently available is the original-style MVSEC split:
+
+- train: `outdoor_day1 + outdoor_day2`
+- eval: `indoor_flying1 + indoor_flying2 + indoor_flying3`
+- event input: 6M extracted left-camera events per sequence
+- flow GT: generated full `*_gt_flow_full.npz`
+- decoder: shared `EVFlowNetLike`
+- epochs: 1
+- GPU: RTX 4090
+
+| Method | AEE | Outlier % |
+|---|---:|---:|
+| ERGO | 3.007065 | 38.588946 |
+| EST | 2.935838 | 38.963377 |
+| Event Pre-training | 2.948537 | 38.059867 |
+| EvRepSL | 3.032907 | 39.112478 |
+| GET | 3.016356 | 38.631755 |
+| MatrixLSTM | 3.059037 | 39.388230 |
+
+The archive is stored outside Git under
+`results/autodl_archives/20260426/mvsec_original_protocol_results_20260426.tar.gz`
+and mirrored in the Obsidian artifact folder.
 
 ## Layout
 
@@ -161,18 +192,20 @@ The current `LinearFlowRegressor` is only the local bring-up head. It exists to
 prove that the full `data -> adapter -> train -> evaluate` loop already works
 before renting GPUs.
 
-### Minimal real-data protocol before renting more time
+### Completed real-data protocol
 
-Before running the full benchmark on a rented GPU machine, fix a tiny real-data
-smoke-test protocol and do not change it casually:
+The tiny real-data smoke tests, indoor-only controlled experiments, and the
+formal outdoor-train / indoor-test run have all completed. The current formal
+run command is captured in `scripts/autodl_outdoor_pipeline.sh`.
 
-1. dataset: `MVSEC indoor_flying1`
-2. metrics: `AEE + Outlier`
-3. methods: start with `EST` and `Event Pre-training`
-4. decoder: one shared EV-FlowNet-like head
-5. goal: verify the real MVSEC training and evaluation path, not paper numbers
+Use this only if a rerun is needed:
 
-After that smoke test is stable, move to the full MVSEC protocol:
+```bash
+cd /root/autodl-tmp/capstone/5703
+bash scripts/autodl_outdoor_pipeline.sh
+```
+
+This route uses the full original-style split:
 
 1. training: `outdoor_day1 + outdoor_day2`
 2. testing: `indoor_flying1/2/3`
@@ -181,7 +214,9 @@ After that smoke test is stable, move to the full MVSEC protocol:
 
 ## Next implementation steps
 
-1. run the shared EV-FlowNet-like path on `indoor_flying1`
-2. stabilize one real-data smoke test with `EST` and `Event Pre-training`
-3. progressively upgrade first-pass adapters toward paper-faithful code paths
-4. expand to the full MVSEC train/test split once the smoke test is stable
+1. Use the formal table above in the report as an adapted reproduction result.
+2. State the limitations clearly: shared decoder, one epoch, and index-based
+   event-window / flow-frame pairing.
+3. If stronger numeric claims are needed, rerun the exact same protocol for more
+   epochs without changing the data split or decoder.
+4. Only after that, consider paper-specific decoder/backbone work.

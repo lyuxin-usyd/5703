@@ -1,7 +1,12 @@
-"""Run the proper MVSEC outdoor-train / indoor-eval benchmark.
+"""Legacy outdoor-train / indoor-eval benchmark helper.
 
 Train on: outdoor_day1 + outdoor_day2
 Eval on:  indoor_flying1, indoor_flying2, indoor_flying3 (separately)
+
+This script is kept for reference only. The current formal reproduction path is
+`scripts/run_original_protocol.py`, or `scripts/autodl_outdoor_pipeline.sh` on
+AutoDL. The legacy argument shape below predates the successful 6M-event /
+full-GT-flow protocol and should not be used for the report unless debugging.
 
 Usage example:
   python scripts/run_outdoor_suite.py \

@@ -12,7 +12,7 @@ We are reproducing / adapting six runnable event-representation papers on the
 MVSEC optical-flow downstream task. OmniEvent is reported-only and should not be
 rerun.
 
-The final protocol we are trying to run is the original-style MVSEC split:
+The final protocol has completed on the original-style MVSEC split:
 
 - train: `outdoor_day1 + outdoor_day2`
 - evaluate: `indoor_flying1 + indoor_flying2 + indoor_flying3`
@@ -54,7 +54,9 @@ f82039d Allow full MVSEC flow generation
 ```
 
 If AutoDL is on an old copy, refresh the code from GitHub before running more
-experiments.
+experiments. The current helper script is `scripts/autodl_outdoor_pipeline.sh`;
+older folders such as `5703_before_output_fix` and `5703_before_stream_fix_*`
+are archived debugging copies.
 
 ## Completed Experiments
 
@@ -105,6 +107,53 @@ evrepsl           AEE=2.577776 outlier=31.724076
 get               AEE=2.576629 outlier=31.699674
 matrixlstm        AEE=2.578021 outlier=31.715153
 ```
+
+### 4. Formal original-style protocol, outdoor train + indoor eval
+
+Archive:
+
+```text
+mvsec_original_protocol_results_20260426.tar.gz
+```
+
+Local copies:
+
+```text
+D:\event-benchmark\mvsec-benchmark\results\autodl_archives\20260426
+D:\ObsidianVault\02-项目记录\COMP5703-Capstone\artifacts\mvsec_results\20260426
+```
+
+Protocol:
+
+```text
+train: outdoor_day1 + outdoor_day2
+eval:  indoor_flying1 + indoor_flying2 + indoor_flying3
+events: 6M events per sequence HDF5
+flow:   full generated *_gt_flow_full.npz
+decoder: shared EVFlowNetLike
+epochs: 1
+GPU: RTX 4090
+```
+
+Formal results:
+
+```text
+ergo              AEE=3.007065 outlier=38.588946 train=17329 eval=3583
+est               AEE=2.935838 outlier=38.963377 train=17329 eval=3583
+event_pretraining AEE=2.948537 outlier=38.059867 train=17329 eval=3583
+evrepsl           AEE=3.032907 outlier=39.112478 train=17329 eval=3583
+get               AEE=3.016356 outlier=38.631755 train=17329 eval=3583
+matrixlstm        AEE=3.059037 outlier=39.388230 train=17329 eval=3583
+```
+
+Important interpretation:
+
+- This is the current main result for the optical-flow task.
+- It is an adapted unified benchmark, not an exact reproduction of each
+  paper's private downstream training stack.
+- The current code pairs fixed event-count windows with flow frames by index.
+  This is internally consistent across methods but not the most paper-faithful
+  timestamp-aligned MVSEC pairing.
 
 These archive files are also copied locally under:
 
@@ -188,13 +237,29 @@ n_yielded >= flow_limit
 If `cd /root/autodl-tmp/capstone/5703` fails, the user is in the wrong folder.
 Do not run from `/root/autodl-tmp/capstone`.
 
-## Current Next Experiment
+## Re-run Formal Protocol If Needed
 
-Run the formal protocol for one adapter first. Use `est` first because it is
-the clearest baseline.
+The formal protocol has already completed for all six runnable adapters. Do not
+repeat it unless debugging or intentionally producing a longer training run.
 
-This trains on outdoor day 1/2 and evaluates on all three indoor flying
-sequences. It does not rerun the old indoor-only benchmark.
+If it must be rerun, the helper script now points to the current successful
+protocol:
+
+```bash
+cd /root/autodl-tmp/capstone/5703
+bash scripts/autodl_outdoor_pipeline.sh
+```
+
+For one adapter only:
+
+```bash
+cd /root/autodl-tmp/capstone/5703
+bash scripts/autodl_outdoor_pipeline.sh est
+```
+
+The raw command below is kept for reference. It trains on outdoor day 1/2 and
+evaluates on all three indoor flying sequences. It does not rerun the old
+indoor-only benchmark.
 
 ```bash
 cd /root/autodl-tmp/capstone/5703
@@ -235,12 +300,12 @@ If there is no progress for many minutes, do not assume it is fine. Check that
 the code has the progress patch and that the terminal is actually in
 `/root/autodl-tmp/capstone/5703`.
 
-## After EST Succeeds
+## Adapter List
 
-Run the same command for the other adapters by replacing `--adapter` and the
-output/log names:
+The formal run should include exactly these six runnable adapters:
 
 ```text
+est
 ergo
 event_pretraining
 get
@@ -278,4 +343,6 @@ contains JSON/logs, not raw MVSEC bags.
    optical-flow downstream code, so this is a unified adapted reproduction.
 6. If AutoDL Jupyter terminal freezes, prefer a fresh terminal and inspect
    `logs/*.log`. For long runs, use `tee` so progress is preserved.
-
+7. Do not use `scripts/run_outdoor_suite.py` for the final protocol unless
+   explicitly debugging legacy behavior. Use `scripts/run_original_protocol.py`
+   or `scripts/autodl_outdoor_pipeline.sh`.
