@@ -182,6 +182,7 @@ def run_torch_train_eval_benchmark(
     device: str = "cpu",
     seed: int = 42,
     return_window_metrics: bool = False,
+    progress_every: int = 100,
 ) -> BenchmarkResult:
     """Train on one set of MVSEC windows and evaluate on a separate set.
 
@@ -204,30 +205,61 @@ def run_torch_train_eval_benchmark(
     from .models.evflownet_like import EVFlowNetLike
 
     torch.manual_seed(seed)
-    adapter, train_reps = _build_adapter_representations(train_samples, adapter_name=adapter_name)
-    eval_reps = [adapter.build(s.events, s.sensor_size) for s in eval_samples]
+    if adapter_name == "omnievent":
+        raise ValueError("OmniEvent is reported-only in the current benchmark workflow.")
 
-    channels = int(train_reps[0].shape[0])
+    adapters = build_adapters()
+    if adapter_name not in adapters:
+        raise KeyError(f"Unknown adapter: {adapter_name}")
+    adapter = adapters[adapter_name]
+
+    progress_every = int(progress_every)
+    if progress_every < 0:
+        raise ValueError("progress_every must be >= 0")
+
+    def _progress(message: str) -> None:
+        if progress_every:
+            print(message, flush=True)
+
+    _progress(f"[setup] adapter={adapter_name} train_windows={len(train_samples)} eval_windows={len(eval_samples)}")
+    _progress("[setup] building first representation")
+    first_rep = adapter.build(train_samples[0].events, train_samples[0].sensor_size)
+    channels = int(first_rep.shape[0])
     model = EVFlowNetLike(in_channels=channels, base_channels=base_channels).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    def _make_batch(reps: list[np.ndarray], samples: list[FlowWindowSample], indices: object) -> tuple[object, object]:
-        x_np = np.stack([reps[int(i)] for i in indices], axis=0)
+    def _make_batch(samples: list[FlowWindowSample], indices: object, *, phase: str, total: int) -> tuple[object, object]:
+        reps: list[np.ndarray] = []
+        for raw_idx in indices:
+            idx = int(raw_idx)
+            if phase == "train" and idx == 0:
+                rep = first_rep
+            else:
+                rep = adapter.build(samples[idx].events, samples[idx].sensor_size)
+            reps.append(rep)
+            current = idx + 1
+            if progress_every and (current == 1 or current == total or current % progress_every == 0):
+                _progress(f"[{phase}] built representation {current}/{total}")
+        x_np = np.stack(reps, axis=0)
         y_np = np.stack([np.moveaxis(samples[int(i)].gt_flow, -1, 0) for i in indices], axis=0)
         return torch.from_numpy(x_np).float().to(device), torch.from_numpy(y_np).float().to(device)
 
     num_train = len(train_samples)
-    for _ in range(epochs):
+    for epoch in range(epochs):
         model.train()
         perm = torch.randperm(num_train)
+        _progress(f"[train] epoch {epoch + 1}/{epochs} batches={(num_train + batch_size - 1) // batch_size}")
         for start in range(0, num_train, batch_size):
             idx = perm[start:start + batch_size].tolist()
-            x_batch, y_batch = _make_batch(train_reps, train_samples, idx)
+            x_batch, y_batch = _make_batch(train_samples, idx, phase="train", total=num_train)
             pred = model(x_batch)
             loss = F.smooth_l1_loss(pred, y_batch)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            batch_no = start // batch_size + 1
+            if progress_every and (batch_no == 1 or start + batch_size >= num_train or batch_no % progress_every == 0):
+                _progress(f"[train] epoch {epoch + 1}/{epochs} batch {batch_no}")
 
     metrics: list[FlowMetrics] = []
     window_metrics: list[dict[str, float | int]] = []
@@ -236,11 +268,12 @@ def run_torch_train_eval_benchmark(
         raise ValueError("eval_batch_size must be >= 1")
 
     model.eval()
+    _progress(f"[eval] batches={(len(eval_samples) + eval_batch - 1) // eval_batch}")
     with torch.no_grad():
         for start in range(0, len(eval_samples), eval_batch):
             stop = min(start + eval_batch, len(eval_samples))
-            x_np = np.stack(eval_reps[start:stop], axis=0)
-            x_batch = torch.from_numpy(x_np).float().to(device)
+            idx = list(range(start, stop))
+            x_batch, _ = _make_batch(eval_samples, idx, phase="eval", total=len(eval_samples))
             pred_batch = model(x_batch).detach().cpu().numpy()
             for offset, pred in enumerate(pred_batch):
                 eval_index = start + offset
@@ -259,6 +292,9 @@ def run_torch_train_eval_benchmark(
                             "outlier_count": int(metric.outlier_count),
                         }
                     )
+            batch_no = start // eval_batch + 1
+            if progress_every and (batch_no == 1 or stop >= len(eval_samples) or batch_no % progress_every == 0):
+                _progress(f"[eval] batch {batch_no}")
 
     mean_aee = sum(m.aee for m in metrics) / len(metrics)
     mean_outlier = sum(m.outlier_percent for m in metrics) / len(metrics)

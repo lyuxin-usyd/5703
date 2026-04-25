@@ -125,6 +125,7 @@ def iter_event_windows(
     if total == 0:
         return
 
+    flow_limit = gt_flow.shape[0] if gt_flow.ndim == 4 else None
     n_yielded = 0
     for start in range(0, max(total - window_size + 1, 1), stride):
         end = min(start + window_size, total)
@@ -132,7 +133,9 @@ def iter_event_windows(
             continue
 
         if gt_flow.ndim == 4:
-            flow_idx = min(n_yielded, gt_flow.shape[0] - 1)
+            if flow_limit is not None and n_yielded >= flow_limit:
+                break
+            flow_idx = n_yielded
             flow = gt_flow[flow_idx]
         else:
             flow = gt_flow

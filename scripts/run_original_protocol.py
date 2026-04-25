@@ -21,13 +21,16 @@ def _load_sets(
     window_size: int,
     stride: int,
     max_windows_per_set: int | None,
+    label: str,
 ) -> list:
     samples = []
-    for item in pairs:
+    for idx, item in enumerate(pairs, start=1):
         try:
             h5_raw, flow_raw = item.split(":", 1)
         except ValueError as exc:
             raise SystemExit(f"Expected H5:FLOW pair, got: {item}") from exc
+        print(f"[load:{label}] pair {idx}/{len(pairs)} h5={h5_raw}", flush=True)
+        print(f"[load:{label}] pair {idx}/{len(pairs)} flow={flow_raw}", flush=True)
         loaded = load_mvsec_windows(
             h5_path=Path(h5_raw),
             flow_path=Path(flow_raw),
@@ -35,10 +38,12 @@ def _load_sets(
             stride=stride,
             max_windows=max_windows_per_set,
         )
+        print(f"[load:{label}] pair {idx}/{len(pairs)} windows={len(loaded)}", flush=True)
         for sample in loaded:
             sample.meta["source_h5"] = h5_raw
             sample.meta["source_flow"] = flow_raw
         samples.extend(loaded)
+    print(f"[load:{label}] total_windows={len(samples)}", flush=True)
     return samples
 
 
@@ -72,6 +77,7 @@ def main() -> None:
     parser.add_argument("--disable-cudnn", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--window-metrics", action="store_true")
+    parser.add_argument("--progress-every", type=int, default=100)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -85,12 +91,14 @@ def main() -> None:
         window_size=args.window_size,
         stride=args.stride,
         max_windows_per_set=args.max_train_windows_per_set,
+        label="train",
     )
     eval_samples = _load_sets(
         args.eval_pair,
         window_size=args.window_size,
         stride=args.stride,
         max_windows_per_set=args.max_eval_windows_per_set,
+        label="eval",
     )
 
     result = run_torch_train_eval_benchmark(
@@ -105,6 +113,7 @@ def main() -> None:
         device=args.device,
         seed=args.seed,
         return_window_metrics=args.window_metrics,
+        progress_every=args.progress_every,
     )
     result_dict = {key: value for key, value in result.__dict__.items() if value is not None}
     result_dict["train_sets"] = args.train_pair
@@ -113,6 +122,7 @@ def main() -> None:
     result_dict["stride"] = args.stride
     result_dict["max_train_windows_per_set"] = args.max_train_windows_per_set
     result_dict["max_eval_windows_per_set"] = args.max_eval_windows_per_set
+    result_dict["progress_every"] = args.progress_every
 
     payload = json.dumps(result_dict, indent=2, sort_keys=True)
     print(payload)

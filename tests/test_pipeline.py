@@ -51,6 +51,21 @@ class PipelineTest(unittest.TestCase):
             self.assertGreater(result.valid_count, 0)
             self.assertTrue(result.aee == result.aee)
 
+    def test_windows_do_not_repeat_last_flow_frame(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            h5_path, flow_path = write_mock_mvsec_pair(Path(tmpdir), num_events=2000)
+            import numpy as np
+
+            flow = np.zeros((3, 32, 48, 2), dtype=np.float32)
+            np.savez_compressed(flow_path, flow=flow)
+            windows = load_mvsec_windows(
+                h5_path=h5_path,
+                flow_path=flow_path,
+                window_size=200,
+                stride=200,
+            )
+            self.assertEqual(len(windows), 3)
+
     def test_six_runnable_methods_complete_mock_suite(self):
         methods = ["est", "ergo", "event_pretraining", "get", "matrixlstm", "evrepsl"]
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -149,6 +164,7 @@ class PipelineTest(unittest.TestCase):
                 eval_batch_size=1,
                 device="cpu",
                 return_window_metrics=True,
+                progress_every=0,
             )
             self.assertEqual(result.adapter_name, "est")
             self.assertEqual(result.train_windows, 4)
