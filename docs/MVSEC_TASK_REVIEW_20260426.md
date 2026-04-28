@@ -24,7 +24,8 @@ The formal MVSEC protocol has been run on AutoDL:
 - event cap: 6M events per sequence HDF5
 - flow GT: full generated `*_gt_flow_full.npz`
 - decoder: shared `EVFlowNetLike`
-- epochs: 1
+- completed run: epochs 1, used as baseline/sanity check
+- recommended formal budget: max epochs 100 with outdoor-validation early stopping
 - GPU: RTX 4090
 
 Result archive:
@@ -50,9 +51,27 @@ results/autodl_archives/20260426/extracted/results/
 | GET | 3.016356 | 38.631755 | 17329 | 3583 | 322326680 |
 | MatrixLSTM | 3.059037 | 39.388230 | 17329 | 3583 | 322326680 |
 
-These are the main reproduction/adaptation results currently available. The
+These are the main reproduction/adaptation baseline results currently available. The
 older `smoke`, `indoor_100f_2m`, and `indoor_full_6m` archives are debugging
 and controlled experiments, not the main result.
+
+## Recommended Formal Training Budget
+
+The `epochs=1` result is a runnable baseline, not a convergence result. For the
+formal adapted MVSEC run, use:
+
+- `--epochs 100`
+- `--early-stop-val-windows 1000`
+- `--early-stop-patience 10`
+- `--early-stop-min-delta 0.001`
+- `--progress-every 100`
+
+Early stopping uses held-out outdoor training windows only. The indoor flying
+sequences remain final evaluation data and are not used to decide when training
+stops.
+
+Use `scripts/run_mvsec_100e_all_early_stop.sh` on AutoDL to run all six methods
+sequentially with logs and progress output.
 
 ## Closed-Loop Check
 
@@ -119,14 +138,15 @@ Impact:
 
 File: `scripts/run_original_protocol.py`
 
-The formal run used `--epochs 1`. That was enough to prove the protocol can run
-end to end and produce stable logs/results, but it is not a convergence study.
+The completed formal-style run used `--epochs 1`. That was enough to prove the
+protocol can run end to end and produce stable logs/results, but it is not a
+convergence study.
 
 Impact:
 
 - Good enough as an initial reproducible baseline.
-- If the report needs stronger numeric claims, run 5/10 epochs on the same
-  protocol and keep all settings fixed.
+- For stronger numeric claims, run the same protocol with a 100-epoch maximum
+  and outdoor-validation early stopping.
 
 ### P2: Old outdoor helper script was misleading
 
@@ -179,10 +199,10 @@ Better wording:
 
 ## Next Recommended Step
 
-For the current submission, do not rerun experiments unless the supervisor asks
-for stronger training. The most useful next work is:
+For the current submission, the recommended next experiment is the 100-epoch
+maximum early-stop run:
 
-1. Make the report table from the formal result table above.
-2. Explain the limitations clearly.
-3. Optionally run a 5-epoch version of the same formal protocol if more
-   compute is available and numeric strength matters.
+1. Run `scripts/run_mvsec_100e_all_early_stop.sh` on AutoDL.
+2. Replace or supplement the baseline table with the resulting `e100_earlystop`
+   JSON files.
+3. Explain the limitations clearly: index-based pairing and shared decoder.

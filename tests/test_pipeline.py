@@ -172,6 +172,44 @@ class PipelineTest(unittest.TestCase):
             self.assertEqual(len(result.window_metrics or []), 3)
             self.assertGreater(result.valid_count, 0)
 
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "torch is not installed in this interpreter")
+    def test_torch_train_eval_benchmark_supports_early_stop(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            train_h5, train_flow = write_mock_mvsec_pair(Path(tmpdir) / "train", num_events=1800)
+            eval_h5, eval_flow = write_mock_mvsec_pair(Path(tmpdir) / "eval", num_events=1000)
+            train_samples = load_mvsec_windows(
+                h5_path=train_h5,
+                flow_path=train_flow,
+                window_size=200,
+                stride=200,
+                max_windows=8,
+            )
+            eval_samples = load_mvsec_windows(
+                h5_path=eval_h5,
+                flow_path=eval_flow,
+                window_size=200,
+                stride=200,
+                max_windows=3,
+            )
+            result = run_torch_train_eval_benchmark(
+                train_samples,
+                eval_samples,
+                adapter_name="est",
+                epochs=3,
+                base_channels=8,
+                batch_size=2,
+                eval_batch_size=1,
+                device="cpu",
+                progress_every=0,
+                early_stop_patience=2,
+                early_stop_val_windows=2,
+            )
+            self.assertEqual(result.train_windows, 6)
+            self.assertEqual(result.early_stop_val_windows, 2)
+            self.assertIsNotNone(result.epochs_completed)
+            self.assertIsNotNone(result.best_epoch)
+            self.assertIsNotNone(result.best_val_aee)
+
 
 if __name__ == "__main__":
     unittest.main()
