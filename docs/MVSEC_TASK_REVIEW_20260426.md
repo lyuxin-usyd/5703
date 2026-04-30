@@ -25,7 +25,7 @@ The formal MVSEC protocol has been run on AutoDL:
 - flow GT: full generated `*_gt_flow_full.npz`
 - decoder: shared `EVFlowNetLike`
 - completed run: epochs 1, used as baseline/sanity check
-- recommended formal budget: max epochs 100 with outdoor-validation early stopping
+- recommended formal budget: max epochs 100 with block-random outdoor-validation early stopping
 - GPU: RTX 4090
 
 Result archive:
@@ -64,14 +64,50 @@ formal adapted MVSEC run, use:
 - `--early-stop-val-windows 1000`
 - `--early-stop-patience 10`
 - `--early-stop-min-delta 0.001`
+- `--early-stop-val-strategy block-random`
+- `--curve-log logs/curves/<run_name>.csv`
 - `--progress-every 100`
 
-Early stopping uses held-out outdoor training windows only. The indoor flying
-sequences remain final evaluation data and are not used to decide when training
-stops.
+Early stopping uses held-out outdoor training windows only. The current plan
+uses block-random contiguous validation windows inside `outdoor_day1/2`: this
+keeps short-term motion continuity, avoids using indoor test data for model
+selection, and is less biased than always taking the tail of each sequence. The
+indoor flying sequences remain final evaluation data and are not used to decide
+when training stops.
 
 Use `scripts/run_mvsec_100e_all_early_stop.sh` on AutoDL to run all six methods
-sequentially with logs and progress output.
+sequentially with logs, JSON outputs, local CSV curves, and optional W&B
+logging. W&B is optional because the CSV files are the required local record.
+Enable W&B only when needed, for example:
+
+```bash
+python -m pip install wandb
+WANDB_PROJECT=mvsec-flow WANDB_MODE=offline bash scripts/run_mvsec_100e_all_early_stop.sh
+```
+
+The older 100-epoch early-stop run that used tail validation is useful as an
+intermediate debugging result, but the recommended formal setting for future
+runs is `block-random`.
+
+## Baseline Interface Plan
+
+The optical-flow task can later be connected to the wider benchmark group's
+baseline/downstream interface by calling either:
+
+- `scripts/run_original_protocol.py` for one method, or
+- `scripts/run_mvsec_100e_all_early_stop.sh` for all six methods.
+
+The stable interface is:
+
+```text
+event HDF5 + flow NPZ + adapter name
+  -> shared EVFlowNetLike decoder
+  -> JSON result + CSV curve + log
+```
+
+Do this integration after the optical-flow runner, result table, and limitations
+are stable. Do not push experimental AutoDL-only path fixes into the group repo
+without first syncing the personal repository.
 
 ## Closed-Loop Check
 
@@ -205,4 +241,6 @@ maximum early-stop run:
 1. Run `scripts/run_mvsec_100e_all_early_stop.sh` on AutoDL.
 2. Replace or supplement the baseline table with the resulting `e100_earlystop`
    JSON files.
-3. Explain the limitations clearly: index-based pairing and shared decoder.
+3. Use the CSV curves, or optional W&B curves, to show training/validation
+   behavior.
+4. Explain the limitations clearly: index-based pairing and shared decoder.

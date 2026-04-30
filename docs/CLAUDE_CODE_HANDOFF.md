@@ -1,6 +1,6 @@
 # Claude Code Handoff: MVSEC Optical Flow Benchmark
 
-Last updated: 2026-04-26
+Last updated: 2026-04-30
 
 This file is the machine-readable handoff for continuing the COMP5703 MVSEC
 optical-flow reproduction work. Do not rely only on the Obsidian note; this
@@ -23,6 +23,52 @@ The final protocol has completed on the original-style MVSEC split:
 
 Important wording: when this protocol mentions `indoor_flying1/2/3`, that is
 the evaluation set. It is not the already-finished indoor-only experiment.
+
+## Current Formal Run Plan, 2026-04-30
+
+The current recommended run is no longer the one-epoch sanity check. Use the
+100-epoch maximum run with early stopping:
+
+```bash
+cd /root/autodl-tmp/capstone/5703
+bash scripts/run_mvsec_100e_all_early_stop.sh
+```
+
+Default settings in that script:
+
+```text
+epochs: 100 maximum
+early-stop patience: 10
+early-stop min_delta: 0.001
+early-stop validation: 1000 outdoor training windows
+validation strategy: block-random contiguous windows
+curve logs: logs/curves/*.csv
+JSON results: results/*_earlystop.json
+```
+
+Why `block-random`:
+
+- Optical flow is temporal, so individual windows should not be fully scattered
+  at random.
+- Tail-only validation can overrepresent one motion segment and make best epoch
+  look artificially early.
+- Block-random holds out contiguous chunks from `outdoor_day1/2`, preserving
+  local motion while keeping `indoor_flying1/2/3` untouched as test data.
+
+Optional W&B logging:
+
+```bash
+python -m pip install wandb
+WANDB_PROJECT=mvsec-flow WANDB_MODE=offline bash scripts/run_mvsec_100e_all_early_stop.sh
+```
+
+W&B is optional. The local CSV curves are the required reproducible record.
+
+Later, the wider benchmark group can call `scripts/run_original_protocol.py` as
+the optical-flow baseline/downstream interface. The stable interface is event
+HDF5 + flow NPZ + adapter name -> JSON result + CSV curve + log. Do not push
+experimental AutoDL-only path changes to the group repo before syncing the
+personal repository.
 
 ## Repository State
 
@@ -154,6 +200,30 @@ Important interpretation:
 - The current code pairs fixed event-count windows with flow frames by index.
   This is internally consistent across methods but not the most paper-faithful
   timestamp-aligned MVSEC pairing.
+
+### 5. 100-epoch early-stop run design
+
+The next formal numeric table should come from:
+
+```text
+scripts/run_mvsec_100e_all_early_stop.sh
+```
+
+This script runs all six adapters sequentially with:
+
+```text
+outdoor_day1/2 train
+indoor_flying1/2/3 eval
+100 epoch maximum
+patience 10
+block-random outdoor validation
+CSV curve logging
+optional W&B logging
+```
+
+If older files named `e100_*_original_protocol_pathfixed.json` exist, treat them
+as intermediate results unless they explicitly record
+`early_stop_val_strategy=block-random`.
 
 These archive files are also copied locally under:
 

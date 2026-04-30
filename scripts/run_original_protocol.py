@@ -96,6 +96,24 @@ def main() -> None:
         default=0,
         help="Hold out this many outdoor training windows for early-stop validation.",
     )
+    parser.add_argument(
+        "--early-stop-val-strategy",
+        choices=["tail", "block-random"],
+        default="tail",
+        help=(
+            "How to choose early-stop validation windows from outdoor training data. "
+            "block-random holds out continuous blocks within each source sequence."
+        ),
+    )
+    parser.add_argument(
+        "--curve-log",
+        type=Path,
+        default=None,
+        help="Optional CSV file for epoch-level train/validation curves.",
+    )
+    parser.add_argument("--wandb-project", type=str, default=None)
+    parser.add_argument("--wandb-run-name", type=str, default=None)
+    parser.add_argument("--wandb-mode", type=str, default=None)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -135,6 +153,11 @@ def main() -> None:
         early_stop_patience=args.early_stop_patience,
         early_stop_min_delta=args.early_stop_min_delta,
         early_stop_val_windows=args.early_stop_val_windows,
+        early_stop_val_strategy=args.early_stop_val_strategy,
+        curve_log_path=args.curve_log,
+        wandb_project=args.wandb_project,
+        wandb_run_name=args.wandb_run_name,
+        wandb_mode=args.wandb_mode,
     )
     result_dict = {key: value for key, value in result.__dict__.items() if value is not None}
     result_dict["train_sets"] = args.train_pair
@@ -147,6 +170,11 @@ def main() -> None:
     result_dict["early_stop_patience"] = args.early_stop_patience
     result_dict["early_stop_min_delta"] = args.early_stop_min_delta
     result_dict["early_stop_val_windows_requested"] = args.early_stop_val_windows
+    result_dict["early_stop_val_strategy_requested"] = args.early_stop_val_strategy
+    result_dict["curve_log_requested"] = str(args.curve_log) if args.curve_log is not None else None
+    result_dict["wandb_project"] = args.wandb_project
+    result_dict["wandb_run_name"] = args.wandb_run_name
+    result_dict["wandb_mode"] = args.wandb_mode
 
     payload = json.dumps(result_dict, indent=2, sort_keys=True)
     print(payload)

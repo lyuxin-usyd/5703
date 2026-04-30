@@ -210,6 +210,58 @@ class PipelineTest(unittest.TestCase):
             self.assertIsNotNone(result.best_epoch)
             self.assertIsNotNone(result.best_val_aee)
 
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "torch is not installed in this interpreter")
+    def test_torch_train_eval_benchmark_block_random_validation_writes_curve(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            train_a_h5, train_a_flow = write_mock_mvsec_pair(root / "train_a", num_events=1400)
+            train_b_h5, train_b_flow = write_mock_mvsec_pair(root / "train_b", num_events=1400)
+            eval_h5, eval_flow = write_mock_mvsec_pair(root / "eval", num_events=1000)
+            train_samples = []
+            for h5_path, flow_path in [(train_a_h5, train_a_flow), (train_b_h5, train_b_flow)]:
+                loaded = load_mvsec_windows(
+                    h5_path=h5_path,
+                    flow_path=flow_path,
+                    window_size=200,
+                    stride=200,
+                    max_windows=5,
+                )
+                for sample in loaded:
+                    sample.meta["source_h5"] = str(h5_path)
+                    sample.meta["source_flow"] = str(flow_path)
+                train_samples.extend(loaded)
+            eval_samples = load_mvsec_windows(
+                h5_path=eval_h5,
+                flow_path=eval_flow,
+                window_size=200,
+                stride=200,
+                max_windows=3,
+            )
+            curve_path = root / "curves" / "run.csv"
+            result = run_torch_train_eval_benchmark(
+                train_samples,
+                eval_samples,
+                adapter_name="est",
+                epochs=2,
+                base_channels=8,
+                batch_size=2,
+                eval_batch_size=1,
+                device="cpu",
+                progress_every=0,
+                early_stop_patience=2,
+                early_stop_val_windows=4,
+                early_stop_val_strategy="block-random",
+                curve_log_path=curve_path,
+            )
+            self.assertEqual(result.early_stop_val_strategy, "block-random")
+            self.assertEqual(result.early_stop_val_windows, 4)
+            self.assertIsNotNone(result.early_stop_val_source_counts)
+            self.assertEqual(sum((result.early_stop_val_source_counts or {}).values()), 4)
+            self.assertTrue(curve_path.exists())
+            lines = curve_path.read_text(encoding="utf-8").splitlines()
+            self.assertGreaterEqual(len(lines), 2)
+            self.assertEqual(lines[0], "epoch,train_loss,val_aee,best_val_aee,is_best,stale_epochs,early_stopped")
+
 
 if __name__ == "__main__":
     unittest.main()

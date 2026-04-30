@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import csv
 import copy
+from pathlib import Path
 
 import numpy as np
 
@@ -26,6 +28,9 @@ class BenchmarkResult:
     best_epoch: int | None = None
     best_val_aee: float | None = None
     early_stop_val_windows: int | None = None
+    early_stop_val_strategy: str | None = None
+    early_stop_val_source_counts: dict[str, int] | None = None
+    curve_log_path: str | None = None
 
 
 def _split_samples(samples: list[FlowWindowSample], train_windows: int) -> tuple[list[FlowWindowSample], list[FlowWindowSample]]:
@@ -49,6 +54,90 @@ def _build_adapter_representations(
     adapter = adapters[adapter_name]
     reps = [adapter.build(s.events, s.sensor_size) for s in samples]
     return adapter, reps
+
+
+def _source_key(sample: FlowWindowSample) -> str:
+    source = sample.meta.get("source_h5") or sample.meta.get("source_flow") or "unknown"
+    return str(source)
+
+
+def _count_sources(samples: list[FlowWindowSample]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for sample in samples:
+        key = _source_key(sample)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _allocate_val_counts(group_sizes: dict[str, int], requested: int) -> dict[str, int]:
+    capacities = {key: max(size - 1, 0) for key, size in group_sizes.items()}
+    requested = min(requested, sum(capacities.values()))
+    if requested <= 0:
+        return {key: 0 for key in group_sizes}
+
+    total_size = sum(group_sizes.values())
+    raw = {
+        key: requested * (size / total_size)
+        for key, size in group_sizes.items()
+    }
+    counts = {
+        key: min(int(np.floor(value)), capacities[key])
+        for key, value in raw.items()
+    }
+    remaining = requested - sum(counts.values())
+    order = sorted(
+        group_sizes,
+        key=lambda key: (raw[key] - np.floor(raw[key]), group_sizes[key]),
+        reverse=True,
+    )
+    while remaining > 0:
+        changed = False
+        for key in order:
+            if counts[key] < capacities[key]:
+                counts[key] += 1
+                remaining -= 1
+                changed = True
+                if remaining == 0:
+                    break
+        if not changed:
+            break
+    return counts
+
+
+def _split_early_stop_samples(
+    samples: list[FlowWindowSample],
+    *,
+    val_windows: int,
+    strategy: str,
+    seed: int,
+) -> tuple[list[FlowWindowSample], list[FlowWindowSample], dict[str, int]]:
+    if val_windows == 0:
+        return samples, [], {}
+    if strategy == "tail":
+        val_samples = samples[-val_windows:]
+        return samples[:-val_windows], val_samples, _count_sources(val_samples)
+    if strategy != "block-random":
+        raise ValueError("early_stop_val_strategy must be 'tail' or 'block-random'.")
+
+    grouped: dict[str, list[int]] = {}
+    for idx, sample in enumerate(samples):
+        grouped.setdefault(_source_key(sample), []).append(idx)
+    counts = _allocate_val_counts({key: len(indices) for key, indices in grouped.items()}, val_windows)
+    if sum(counts.values()) == 0:
+        raise ValueError("early_stop_val_windows must leave at least one training window.")
+
+    rng = np.random.default_rng(seed)
+    val_indices: set[int] = set()
+    for key, count in counts.items():
+        if count <= 0:
+            continue
+        indices = grouped[key]
+        start = int(rng.integers(0, len(indices) - count + 1))
+        val_indices.update(indices[start:start + count])
+
+    train_samples = [sample for idx, sample in enumerate(samples) if idx not in val_indices]
+    val_samples = [sample for idx, sample in enumerate(samples) if idx in val_indices]
+    return train_samples, val_samples, _count_sources(val_samples)
 
 
 def run_linear_benchmark(
@@ -192,6 +281,11 @@ def run_torch_train_eval_benchmark(
     early_stop_patience: int | None = None,
     early_stop_min_delta: float = 0.0,
     early_stop_val_windows: int = 0,
+    early_stop_val_strategy: str = "tail",
+    curve_log_path: str | Path | None = None,
+    wandb_project: str | None = None,
+    wandb_run_name: str | None = None,
+    wandb_mode: str | None = None,
 ) -> BenchmarkResult:
     """Train on one set of MVSEC windows and evaluate on a separate set.
 
@@ -240,15 +334,64 @@ def run_torch_train_eval_benchmark(
         if progress_every:
             print(message, flush=True)
 
-    val_samples: list[FlowWindowSample] = []
-    effective_train_samples = train_samples
-    if early_stop_val_windows:
-        val_samples = train_samples[-early_stop_val_windows:]
-        effective_train_samples = train_samples[:-early_stop_val_windows]
+    effective_train_samples, val_samples, val_source_counts = _split_early_stop_samples(
+        train_samples,
+        val_windows=early_stop_val_windows,
+        strategy=early_stop_val_strategy,
+        seed=seed,
+    )
+
+    curve_path = Path(curve_log_path) if curve_log_path is not None else None
+    if curve_path is not None:
+        curve_path.parent.mkdir(parents=True, exist_ok=True)
+        with curve_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "epoch",
+                    "train_loss",
+                    "val_aee",
+                    "best_val_aee",
+                    "is_best",
+                    "stale_epochs",
+                    "early_stopped",
+                ],
+            )
+            writer.writeheader()
+
+    wandb_run = None
+    if wandb_project:
+        try:
+            import wandb
+        except Exception as exc:  # pragma: no cover - optional dependency path
+            raise RuntimeError("wandb_project was set, but wandb is not installed.") from exc
+        wandb_kwargs: dict[str, object] = {
+            "project": wandb_project,
+            "name": wandb_run_name,
+            "config": {
+                "adapter_name": adapter_name,
+                "epochs": epochs,
+                "learning_rate": learning_rate,
+                "base_channels": base_channels,
+                "batch_size": batch_size,
+                "eval_batch_size": eval_batch_size,
+                "early_stop_patience": early_stop_patience,
+                "early_stop_min_delta": early_stop_min_delta,
+                "early_stop_val_windows": early_stop_val_windows,
+                "early_stop_val_strategy": early_stop_val_strategy,
+                "train_windows": len(effective_train_samples),
+                "val_windows": len(val_samples),
+                "eval_windows": len(eval_samples),
+            },
+        }
+        if wandb_mode:
+            wandb_kwargs["mode"] = wandb_mode
+        wandb_run = wandb.init(**wandb_kwargs)
 
     _progress(
         f"[setup] adapter={adapter_name} train_windows={len(effective_train_samples)} "
-        f"val_windows={len(val_samples)} eval_windows={len(eval_samples)}"
+        f"val_windows={len(val_samples)} eval_windows={len(eval_samples)} "
+        f"val_strategy={early_stop_val_strategy if val_samples else 'none'}"
     )
     _progress("[setup] building first representation")
     first_rep = adapter.build(effective_train_samples[0].events, effective_train_samples[0].sensor_size)
@@ -367,7 +510,72 @@ def run_torch_train_eval_benchmark(
                 if stale_epochs >= early_stop_patience:
                     early_stopped = True
                     _progress(f"[early-stop] stopping at epoch {epoch + 1}; best_epoch={best_epoch}")
-                    break
+            if curve_path is not None:
+                with curve_path.open("a", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(
+                        f,
+                        fieldnames=[
+                            "epoch",
+                            "train_loss",
+                            "val_aee",
+                            "best_val_aee",
+                            "is_best",
+                            "stale_epochs",
+                            "early_stopped",
+                        ],
+                    )
+                    writer.writerow(
+                        {
+                            "epoch": epoch + 1,
+                            "train_loss": avg_loss,
+                            "val_aee": val_aee,
+                            "best_val_aee": best_val_aee,
+                            "is_best": improved,
+                            "stale_epochs": stale_epochs,
+                            "early_stopped": early_stopped,
+                        }
+                    )
+            if wandb_run is not None:
+                wandb_run.log(
+                    {
+                        "train/loss": avg_loss,
+                        "val/aee": val_aee,
+                        "val/best_aee": best_val_aee,
+                        "early_stop/stale_epochs": stale_epochs,
+                        "early_stop/is_best": improved,
+                    },
+                    step=epoch + 1,
+                )
+            if early_stopped:
+                break
+        else:
+            if curve_path is not None:
+                with curve_path.open("a", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(
+                        f,
+                        fieldnames=[
+                            "epoch",
+                            "train_loss",
+                            "val_aee",
+                            "best_val_aee",
+                            "is_best",
+                            "stale_epochs",
+                            "early_stopped",
+                        ],
+                    )
+                    writer.writerow(
+                        {
+                            "epoch": epoch + 1,
+                            "train_loss": avg_loss,
+                            "val_aee": "",
+                            "best_val_aee": "",
+                            "is_best": "",
+                            "stale_epochs": "",
+                            "early_stopped": "",
+                        }
+                    )
+            if wandb_run is not None:
+                wandb_run.log({"train/loss": avg_loss}, step=epoch + 1)
 
     if best_state is not None:
         model.load_state_dict(best_state)
@@ -381,6 +589,16 @@ def run_torch_train_eval_benchmark(
     mean_aee = sum(m.aee for m in metrics) / len(metrics)
     mean_outlier = sum(m.outlier_percent for m in metrics) / len(metrics)
     valid_count = sum(m.valid_count for m in metrics)
+    if wandb_run is not None:
+        wandb_run.log(
+            {
+                "eval/aee": float(mean_aee),
+                "eval/outlier_percent": float(mean_outlier),
+                "eval/valid_count": int(valid_count),
+            },
+            step=int(epochs_completed),
+        )
+        wandb_run.finish()
     return BenchmarkResult(
         adapter_name=adapter_name,
         train_windows=len(effective_train_samples),
@@ -395,4 +613,7 @@ def run_torch_train_eval_benchmark(
         best_epoch=int(best_epoch) if best_epoch is not None else None,
         best_val_aee=float(best_val_aee) if best_val_aee is not None else None,
         early_stop_val_windows=int(len(val_samples)) if val_samples else None,
+        early_stop_val_strategy=early_stop_val_strategy if val_samples else None,
+        early_stop_val_source_counts=val_source_counts if val_source_counts else None,
+        curve_log_path=str(curve_path) if curve_path is not None else None,
     )
