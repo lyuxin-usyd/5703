@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="490.0" y="32" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700" fill="#111827">Validation AEE Curves</text>
+<text x="490.0" y="56" text-anchor="middle" font-family="Arial" font-size="13" fill="#6b7280">Block-random outdoor validation, patience 10</text>
+<line x1="80" y1="70.0" x2="800" y2="70.0" stroke="#e5e7eb"/>
+<text x="70" y="74.0" text-anchor="end" font-family="Arial" font-size="12" fill="#6b7280">2.76</text>
+<line x1="80" y1="146.0" x2="800" y2="146.0" stroke="#e5e7eb"/>
+<text x="70" y="150.0" text-anchor="end" font-family="Arial" font-size="12" fill="#6b7280">2.73</text>
+<line x1="80" y1="222.0" x2="800" y2="222.0" stroke="#e5e7eb"/>
+<text x="70" y="226.0" text-anchor="end" font-family="Arial" font-size="12" fill="#6b7280">2.69</text>
+<line x1="80" y1="298.0" x2="800" y2="298.0" stroke="#e5e7eb"/>
+<text x="70" y="302.0" text-anchor="end" font-family="Arial" font-size="12" fill="#6b7280">2.65</text>
+<line x1="80" y1="374.0" x2="800" y2="374.0" stroke="#e5e7eb"/>
+<text x="70" y="378.0" text-anchor="end" font-family="Arial" font-size="12" fill="#6b7280">2.62</text>
+<line x1="80" y1="450.0" x2="800" y2="450.0" stroke="#e5e7eb"/>
+<text x="70" y="454.0" text-anchor="end" font-family="Arial" font-size="12" fill="#6b7280">2.58</text>
+<line x1="80" y1="450" x2="800" y2="450" stroke="#9ca3af"/>
+<line x1="80" y1="70" x2="80" y2="450" stroke="#9ca3af"/>
+<polyline fill="none" stroke="#2563eb" stroke-width="2.5" points="80.0,279.9 114.3,283.0 148.6,343.9 182.9,238.9 217.1,131.2 251.4,330.3 285.7,308.0 320.0,343.8 354.3,176.6 388.6,403.7 422.9,245.3 457.1,399.8 491.4,265.9 525.7,353.1 560.0,344.0 594.3,315.5 628.6,269.3 662.9,327.8 697.1,290.0 731.4,287.0"/>
+<circle cx="731.4" cy="287.0" r="3" fill="#2563eb"/>
+<polyline fill="none" stroke="#dc2626" stroke-width="2.5" points="80.0,333.7 114.3,293.5 148.6,334.1 182.9,296.4 217.1,289.0 251.4,290.2 285.7,109.5 320.0,301.1 354.3,290.8 388.6,284.1 422.9,289.8"/>
+<circle cx="422.9" cy="289.8" r="3" fill="#dc2626"/>
+<polyline fill="none" stroke="#059669" stroke-width="2.5" points="80.0,283.3 114.3,370.6 148.6,269.4 182.9,366.4 217.1,328.9 251.4,335.4 285.7,333.7 320.0,298.2 354.3,360.1 388.6,413.2 422.9,340.9 457.1,306.2 491.4,339.6 525.7,364.6 560.0,224.2 594.3,302.0 628.6,298.7 662.9,316.6 697.1,215.9 731.4,183.8"/>
+<circle cx="731.4" cy="183.8" r="3" fill="#059669"/>
+<polyline fill="none" stroke="#7c3aed" stroke-width="2.5" points="80.0,245.0 114.3,321.9 148.6,106.8 182.9,269.1 217.1,362.8 251.4,346.2 285.7,338.5 320.0,197.0 354.3,303.9 388.6,324.3 422.9,272.2 457.1,291.8 491.4,300.9 525.7,225.0 560.0,287.1"/>
+<circle cx="560.0" cy="287.1" r="3" fill="#7c3aed"/>
+<polyline fill="none" stroke="#ea580c" stroke-width="2.5" points="80.0,349.1 114.3,288.4 148.6,323.5 182.9,370.4 217.1,295.5 251.4,325.4 285.7,265.6 320.0,247.1 354.3,339.5 388.6,330.2 422.9,302.9 457.1,412.7 491.4,318.3 525.7,387.3 560.0,239.4 594.3,342.4 628.6,293.3 662.9,382.8 697.1,323.7 731.4,300.4 765.7,284.6 800.0,374.6"/>
+<circle cx="800.0" cy="374.6" r="3" fill="#ea580c"/>
+<polyline fill="none" stroke="#0891b2" stroke-width="2.5" points="80.0,295.0 114.3,262.6 148.6,259.9 182.9,285.1 217.1,335.3 251.4,371.3 285.7,371.5 320.0,392.9 354.3,317.9 388.6,215.6 422.9,382.0 457.1,399.0 491.4,359.2 525.7,212.9 560.0,355.2 594.3,370.5 628.6,210.6 662.9,299.8 697.1,314.0 731.4,215.4 765.7,308.0 800.0,258.0"/>
+<circle cx="800.0" cy="258.0" r="3" fill="#0891b2"/>
+<rect x="835" y="82" width="16" height="4" fill="#2563eb"/>
+<text x="860" y="87" font-family="Arial" font-size="13" fill="#111827">ergo</text>
+<rect x="835" y="108" width="16" height="4" fill="#dc2626"/>
+<text x="860" y="113" font-family="Arial" font-size="13" fill="#111827">est</text>
+<rect x="835" y="134" width="16" height="4" fill="#059669"/>
+<text x="860" y="139" font-family="Arial" font-size="13" fill="#111827">event_pretraining</text>
+<rect x="835" y="160" width="16" height="4" fill="#7c3aed"/>
+<text x="860" y="165" font-family="Arial" font-size="13" fill="#111827">evrepsl</text>
+<rect x="835" y="186" width="16" height="4" fill="#ea580c"/>
+<text x="860" y="191" font-family="Arial" font-size="13" fill="#111827">get</text>
+<rect x="835" y="212" width="16" height="4" fill="#0891b2"/>
+<text x="860" y="217" font-family="Arial" font-size="13" fill="#111827">matrixlstm</text>
+<text x="440.0" y="496" text-anchor="middle" font-family="Arial" font-size="13" fill="#374151">Epoch</text>
+<text x="20" y="260.0" text-anchor="middle" font-family="Arial" font-size="13" fill="#374151" transform="rotate(-90 20 260.0)">Validation AEE</text>
+</svg>

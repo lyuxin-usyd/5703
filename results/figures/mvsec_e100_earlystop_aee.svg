@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="430" viewBox="0 0 900 430">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="450.0" y="32" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700" fill="#111827">MVSEC E100 Early-Stop Test AEE</text>
+<text x="450.0" y="56" text-anchor="middle" font-family="Arial" font-size="13" fill="#6b7280">Lower is better</text>
+<line x1="150" y1="360" x2="860" y2="360" stroke="#d1d5db"/>
+<text x="138" y="99.2" text-anchor="end" font-family="Arial" font-size="15" fill="#111827">est</text>
+<rect x="150" y="80.2" width="601.9" height="28.0" rx="4" fill="#dc2626" opacity="0.88"/>
+<text x="759.9" y="99.2" font-family="Arial" font-size="14" fill="#111827">2.8654</text>
+<text x="138" y="147.5" text-anchor="end" font-family="Arial" font-size="15" fill="#111827">get</text>
+<rect x="150" y="128.5" width="622.1" height="28.0" rx="4" fill="#ea580c" opacity="0.88"/>
+<text x="780.1" y="147.5" font-family="Arial" font-size="14" fill="#111827">2.9619</text>
+<text x="138" y="195.9" text-anchor="end" font-family="Arial" font-size="15" fill="#111827">event_pretraining</text>
+<rect x="150" y="176.8" width="622.9" height="28.0" rx="4" fill="#059669" opacity="0.88"/>
+<text x="780.9" y="195.9" font-family="Arial" font-size="14" fill="#111827">2.9653</text>
+<text x="138" y="244.2" text-anchor="end" font-family="Arial" font-size="15" fill="#111827">ergo</text>
+<rect x="150" y="225.2" width="624.1" height="28.0" rx="4" fill="#2563eb" opacity="0.88"/>
+<text x="782.1" y="244.2" font-family="Arial" font-size="14" fill="#111827">2.9713</text>
+<text x="138" y="292.5" text-anchor="end" font-family="Arial" font-size="15" fill="#111827">matrixlstm</text>
+<rect x="150" y="273.5" width="633.0" height="28.0" rx="4" fill="#0891b2" opacity="0.88"/>
+<text x="791.0" y="292.5" font-family="Arial" font-size="14" fill="#111827">3.0138</text>
+<text x="138" y="340.9" text-anchor="end" font-family="Arial" font-size="15" fill="#111827">evrepsl</text>
+<rect x="150" y="321.8" width="633.9" height="28.0" rx="4" fill="#7c3aed" opacity="0.88"/>
+<text x="791.9" y="340.9" font-family="Arial" font-size="14" fill="#111827">3.0180</text>
+</svg>
