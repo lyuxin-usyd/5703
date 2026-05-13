@@ -20,6 +20,7 @@ def _load_sets(
     *,
     window_size: int,
     stride: int,
+    alignment: str,
     max_windows_per_set: int | None,
     label: str,
 ) -> list:
@@ -37,6 +38,7 @@ def _load_sets(
             window_size=window_size,
             stride=stride,
             max_windows=max_windows_per_set,
+            alignment=alignment,
         )
         print(f"[load:{label}] pair {idx}/{len(pairs)} windows={len(loaded)}", flush=True)
         for sample in loaded:
@@ -66,6 +68,16 @@ def main() -> None:
     )
     parser.add_argument("--window-size", type=int, default=200)
     parser.add_argument("--stride", type=int, default=200)
+    parser.add_argument(
+        "--window-alignment",
+        choices=["auto", "index", "timestamp"],
+        default="auto",
+        help=(
+            "How to pair event windows with flow GT. 'timestamp' uses flow timestamps "
+            "to collect events between adjacent flow frames; 'index' keeps the older "
+            "fixed-count window order; 'auto' uses timestamps when present."
+        ),
+    )
     parser.add_argument("--max-train-windows-per-set", type=int, default=None)
     parser.add_argument("--max-eval-windows-per-set", type=int, default=None)
     parser.add_argument("--epochs", type=int, default=1)
@@ -126,6 +138,7 @@ def main() -> None:
         args.train_pair,
         window_size=args.window_size,
         stride=args.stride,
+        alignment=args.window_alignment,
         max_windows_per_set=args.max_train_windows_per_set,
         label="train",
     )
@@ -133,6 +146,7 @@ def main() -> None:
         args.eval_pair,
         window_size=args.window_size,
         stride=args.stride,
+        alignment=args.window_alignment,
         max_windows_per_set=args.max_eval_windows_per_set,
         label="eval",
     )
@@ -164,6 +178,7 @@ def main() -> None:
     result_dict["eval_sets"] = args.eval_pair
     result_dict["window_size"] = args.window_size
     result_dict["stride"] = args.stride
+    result_dict["window_alignment"] = args.window_alignment
     result_dict["max_train_windows_per_set"] = args.max_train_windows_per_set
     result_dict["max_eval_windows_per_set"] = args.max_eval_windows_per_set
     result_dict["progress_every"] = args.progress_every

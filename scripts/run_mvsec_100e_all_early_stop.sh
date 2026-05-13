@@ -2,6 +2,9 @@
 set -euo pipefail
 
 METHODS=("ergo" "est" "event_pretraining" "evrepsl" "get" "matrixlstm")
+if [[ $# -gt 0 ]]; then
+  METHODS=("$@")
+fi
 
 DATA_ROOT="${DATA_ROOT:-/root/autodl-tmp/capstone/data/mvsec}"
 OUT_DIR="${OUT_DIR:-results}"
@@ -15,6 +18,11 @@ VAL_STRATEGY="${VAL_STRATEGY:-block-random}"
 PROGRESS_EVERY="${PROGRESS_EVERY:-100}"
 WANDB_PROJECT="${WANDB_PROJECT:-}"
 WANDB_MODE="${WANDB_MODE:-offline}"
+BATCH_SIZE="${BATCH_SIZE:-8}"
+EVAL_BATCH_SIZE="${EVAL_BATCH_SIZE:-1}"
+
+# Prefer the corrected indoor_flying1 generated GT file unless explicitly overridden.
+IF1_FLOW="${IF1_FLOW:-$DATA_ROOT/indoor_flying/indoor_flying1_gt_flow_2000.npz}"
 
 mkdir -p "$OUT_DIR" "$LOG_DIR" "$CURVE_DIR"
 
@@ -33,12 +41,13 @@ for method in "${METHODS[@]}"; do
     --adapter "$method" \
     --train-pair "$DATA_ROOT/outdoor_day/outdoor_day1_left_events_6m.h5:$DATA_ROOT/outdoor_day/outdoor_day1_gt_flow_full.npz" \
     --train-pair "$DATA_ROOT/outdoor_day/outdoor_day2_left_events_6m.h5:$DATA_ROOT/outdoor_day/outdoor_day2_gt_flow_full.npz" \
-    --eval-pair "$DATA_ROOT/indoor_flying1/indoor_flying1_left_events_6m.h5:$DATA_ROOT/indoor_flying/indoor_flying1_gt_flow_full.npz" \
+    --eval-pair "$DATA_ROOT/indoor_flying1/indoor_flying1_left_events_6m.h5:$IF1_FLOW" \
     --eval-pair "$DATA_ROOT/indoor_flying/indoor_flying2_left_events_6m.h5:$DATA_ROOT/indoor_flying/indoor_flying2_gt_flow_full.npz" \
     --eval-pair "$DATA_ROOT/indoor_flying/indoor_flying3_left_events_6m.h5:$DATA_ROOT/indoor_flying/indoor_flying3_gt_flow_full.npz" \
     --epochs "$EPOCHS" \
-    --batch-size 4 \
-    --eval-batch-size 1 \
+    --window-alignment timestamp \
+    --batch-size "$BATCH_SIZE" \
+    --eval-batch-size "$EVAL_BATCH_SIZE" \
     --device cuda \
     --disable-cudnn \
     --progress-every "$PROGRESS_EVERY" \

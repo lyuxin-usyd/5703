@@ -25,12 +25,16 @@ This run completed all six runnable event-representation methods under the same 
 | evrepsl | 3.0180 | 39.06 | 60.94 | 15 | 5 | 2.6243 | 16329 | 3583 |
 | get | 2.9619 | 38.34 | 61.66 | 22 | 12 | 2.6007 | 16329 | 3583 |
 | matrixlstm | 3.0138 | 38.97 | 61.03 | 22 | 12 | 2.6071 | 16329 | 3583 |
+| OmniEvent✳ | 0.9900 | 3.24 | 96.76 | paper | paper | paper | paper | paper |
+
+✳ OmniEvent is a paper-reported reference row. Its displayed values are simple averages from the OmniEvent paper's MVSEC `indoor_flying1/2/3` results, not a local run in this repository. Source: [arXiv:2508.01842](https://arxiv.org/abs/2508.01842), Table 2.
 
 ## Reporting Notes
 
 - This is a unified downstream optical-flow benchmark / adapted reproduction, not an exact reimplementation of each paper's original optical-flow decoder.
 - The six event representations are compared under the same EVFlowNet-like decoder and the same MVSEC train/eval protocol, so the comparison is fair inside this benchmark.
-- Event windows are paired to flow frames by fixed-window order/index. This is practical and consistent across methods, but it is not strict timestamp interpolation.
+- The next rerun uses timestamp-aligned event intervals from flow GT timestamps. The checked-in 20260501 numbers below come from the earlier unified pipeline and should be treated as the previous result package.
+- `OmniEvent✳` is included only as reported-only context and should not be ranked as a local result from this pipeline.
 - W&B hooks exist in the code. The current deliverable uses local CSV curves and SVG figures, which are enough for reporting unless an online W&B dashboard is explicitly required.
 
 ## Figures
@@ -45,5 +49,5 @@ This run completed all six runnable event-representation methods under the same 
 
 1. The result should be described as an adapted reproduction / unified downstream optical-flow benchmark, not a bit-for-bit reproduction of every paper's original decoder.
 2. The shared EVFlowNet-like decoder keeps the comparison fair across six methods, especially because several papers do not provide optical-flow downstream code.
-3. Event-flow pairing is fixed-window/order-based rather than strict timestamp interpolation, so this is a consistent benchmark protocol rather than the strictest MVSEC synchronization pipeline.
+3. The updated runner pairs event windows to flow frames by timestamp intervals when flow timestamps are available, while still keeping the shared downstream decoder.
 4. Local CSV curves are available in `artifacts/e100_earlystop_20260501/logs/curves`. W&B support is implemented but was not used for this result package.

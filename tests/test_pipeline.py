@@ -66,6 +66,41 @@ class PipelineTest(unittest.TestCase):
             )
             self.assertEqual(len(windows), 3)
 
+    def test_timestamp_alignment_uses_flow_time_intervals(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import h5py
+            import numpy as np
+
+            root = Path(tmpdir)
+            h5_path = root / "events.h5"
+            flow_path = root / "flow.npz"
+            events = np.asarray(
+                [
+                    [1, 1, 0.0, 1],
+                    [2, 2, 0.4, 1],
+                    [3, 3, 0.8, 1],
+                    [4, 4, 1.2, 1],
+                    [5, 5, 1.6, 1],
+                    [6, 6, 2.0, 1],
+                ],
+                dtype=np.float32,
+            )
+            with h5py.File(h5_path, "w") as h5:
+                h5.create_dataset("events", data=events)
+            flow = np.zeros((3, 8, 8, 2), dtype=np.float32)
+            np.savez_compressed(flow_path, flow=flow, timestamps=np.asarray([0.8, 1.6, 2.0], dtype=np.float64))
+
+            windows = load_mvsec_windows(
+                h5_path=h5_path,
+                flow_path=flow_path,
+                alignment="timestamp",
+            )
+            self.assertEqual(len(windows), 3)
+            self.assertEqual([len(w.events) for w in windows], [2, 2, 1])
+            self.assertEqual(windows[0].meta["alignment"], "timestamp")
+            self.assertEqual(windows[1].meta["flow_index"], 1)
+            self.assertAlmostEqual(float(windows[2].meta["flow_timestamp"]), 2.0)
+
     def test_six_runnable_methods_complete_mock_suite(self):
         methods = ["est", "ergo", "event_pretraining", "get", "matrixlstm", "evrepsl"]
         with tempfile.TemporaryDirectory() as tmpdir:

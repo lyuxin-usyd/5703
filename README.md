@@ -1,222 +1,143 @@
-# MVSEC Benchmark
+# MVSEC Optical Flow Benchmark
 
-Unified benchmark scaffold for COMP5703 optical-flow work on MVSEC.
+This folder contains the optical-flow part of the COMP5703 benchmark group work.
+It implements a unified downstream benchmark on MVSEC for six runnable event
+representations, all evaluated with the same EVFlowNet-like decoder.
 
-This repository is intentionally staged:
+This is an adapted reproduction benchmark. It is not a bit-for-bit rerun of
+each paper's original optical-flow decoder, training stack, or private
+downstream head.
 
-1. build a common task interface
-2. attach seven paper-specific representation adapters
-3. verify small synthetic smoke tests locally
-4. run the adapted MVSEC optical-flow protocol on real data
+## Current Status
 
-Current status:
+- Dataset: MVSEC optical-flow sequences.
+- Train split: `outdoor_day1 + outdoor_day2`.
+- Test split: `indoor_flying1/2/3`.
+- Runnable methods: `ergo`, `est`, `event_pretraining`, `evrepsl`, `get`,
+  `matrixlstm`.
+- Reported-only method: OmniEvent.
+- Decoder: shared `EVFlowNetLike`.
+- Training: max 100 epochs, batch size 8, early-stop patience 10.
+- Validation: block-random validation sampled from outdoor training windows.
+- Metrics: AEE/EPE and outlier percentage.
+- Current runner: timestamp-aligned event/flow pairing using flow timestamps.
+- Data fix: AutoDL `indoor_flying1_gt_flow_full.npz` should use the corrected
+  1398-frame generated file.
+- Result state: the checked-in result package is the completed earlier run.
+  Rerun the updated protocol before replacing the summary table and figures.
 
-- common event and metric utilities
-- six runnable method adapters plus OmniEvent as reported-only
-- per-method environment requirement files
-- synthetic smoke test that runs without MVSEC downloads
-- minimal MVSEC-style loader and a CPU-friendly linear flow benchmark loop
-- real MVSEC smoke, indoor-only controlled runs, and the formal original-style
-  AutoDL run are archived and documented
-- AutoDL handoff and current experiment state in `docs/CLAUDE_CODE_HANDOFF.md`
-- review of remaining scientific limitations in
-  `docs/MVSEC_TASK_REVIEW_20260426.md`
+## Main Result
 
-This is **not** an exact paper-faithful reproduction of all seven methods. It is
-a unified adapted MVSEC benchmark: six runnable event representations are
-compared with the same shared EV-FlowNet-like decoder, while OmniEvent remains
-reported-only because its current public code path is not runnable for this
-downstream task.
+Existing checked-in result package: train on `outdoor_day1 + outdoor_day2`, evaluate on
+`indoor_flying1/2/3`, event window 6M, full generated GT flow frames, max 100
+epochs, early-stop patience 10, block-random validation from outdoor train set.
 
-For continuing or auditing the AutoDL work, start from
-`docs/CLAUDE_CODE_HANDOFF.md`. That file records which runs are already done,
-which files exist on the data disk, and the exact command for the completed
-outdoor-train / indoor-test protocol.
+Lower is better for AEE and Outlier %.
 
-## Current formal result
+| Method | AEE | Outlier % | Non-outlier % | Epochs | Best epoch | Best val AEE | Train windows | Eval windows |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| ergo | 2.9713 | 38.31 | 61.69 | 20 | 10 | 2.6049 | 16329 | 3583 |
+| est | 2.8654 | 37.04 | 62.96 | 11 | 1 | 2.6380 | 16329 | 3583 |
+| event_pretraining | 2.9653 | 38.19 | 61.81 | 20 | 10 | 2.6004 | 16329 | 3583 |
+| evrepsl | 3.0180 | 39.06 | 60.94 | 15 | 5 | 2.6243 | 16329 | 3583 |
+| get | 2.9619 | 38.34 | 61.66 | 22 | 12 | 2.6007 | 16329 | 3583 |
+| matrixlstm | 3.0138 | 38.97 | 61.03 | 22 | 12 | 2.6071 | 16329 | 3583 |
+| OmniEvent✳ | 0.9900 | 3.24 | 96.76 | paper | paper | paper | paper | paper |
 
-The main result currently available is the original-style MVSEC split:
+Among the six local runnable methods, the best test AEE is EST at `2.8654`,
+with `37.04%` outliers. The local method gaps are small, so the main claim
+should be that the six runnable representations are compared under one
+consistent downstream protocol.
 
-- train: `outdoor_day1 + outdoor_day2`
-- eval: `indoor_flying1 + indoor_flying2 + indoor_flying3`
-- event input: 6M extracted left-camera events per sequence
-- flow GT: generated full `*_gt_flow_full.npz`
-- decoder: shared `EVFlowNetLike`
-- epochs: 1
-- GPU: RTX 4090
+✳ OmniEvent is added as a paper-reported reference row, not a local run in this
+pipeline. The displayed AEE and Outlier values are simple averages over
+OmniEvent paper Table 2 results on `indoor_flying1/2/3`
+([arXiv:2508.01842](https://arxiv.org/abs/2508.01842)).
 
-| Method | AEE | Outlier % |
-|---|---:|---:|
-| ERGO | 3.007065 | 38.588946 |
-| EST | 2.935838 | 38.963377 |
-| Event Pre-training | 2.948537 | 38.059867 |
-| EvRepSL | 3.032907 | 39.112478 |
-| GET | 3.016356 | 38.631755 |
-| MatrixLSTM | 3.059037 | 39.388230 |
+## Result Files
 
-The archive is stored outside Git under
-`results/autodl_archives/20260426/mvsec_original_protocol_results_20260426.tar.gz`
-and mirrored in the Obsidian artifact folder.
+- Summary table: `results/summary/mvsec_e100_earlystop_summary.csv`
+- Markdown summary: `results/summary/mvsec_e100_earlystop_summary.md`
+- AEE figure: `results/figures/mvsec_e100_earlystop_aee.svg`
+- Outlier figure: `results/figures/mvsec_e100_earlystop_outlier.svg`
+- Train-loss curve: `results/figures/mvsec_e100_earlystop_train_loss_curve.svg`
+- Validation-AEE curve: `results/figures/mvsec_e100_earlystop_val_curve.svg`
+- Per-method JSON/log/curve artifacts: `artifacts/e100_earlystop_20260501/`
 
-## Layout
+After an AutoDL rerun, rebuild the table and figures from the new JSON and CSV
+curves:
+
+```bash
+python scripts/build_mvsec_e100_outputs.py \
+  --results-dir results \
+  --curve-dir logs/curves \
+  --summary-dir results/summary \
+  --figures-dir results/figures
+```
+
+## Reporting Notes
+
+- Describe this as a unified downstream optical-flow benchmark / adapted
+  reproduction.
+- The six runnable event representations use the same EVFlowNet-like decoder
+  and the same train/eval split.
+- Event windows are paired to flow frames by timestamp intervals when flow
+  timestamps are available. This is closer to the MVSEC optical-flow setup than
+  the previous pairing approach, while still keeping the shared downstream
+  decoder.
+- Do not directly compare these numbers as official-paper reproduction numbers,
+  because several papers do not release the same optical-flow downstream code.
+- Treat `OmniEvent✳` as reported-only. It is useful for context, but it is not
+  directly comparable to the six local runs because the exact pipeline and
+  evaluation details differ.
+- W&B hooks exist in the code, but this result package relies on local CSV
+  curves and SVG figures.
+
+## Code Layout
 
 ```text
-mvsec-benchmark/
+optical-flow/
 ├── configs/
 │   └── envs/
 ├── docs/
-├── refs/              # optional local upstream repos for reference only
+├── results/
+│   ├── figures/
+│   └── summary/
+├── scripts/
 ├── src/
 │   └── mvsec_benchmark/
 └── tests/
 ```
 
-`refs/` is not required for the local smoke tests or the tiny linear benchmark
-loop, and it is excluded from Git by default.
+Key entry points:
 
-## Quick local smoke test
+- `scripts/run_original_protocol.py`
+- `scripts/build_mvsec_e100_outputs.py`
+- `src/mvsec_benchmark/pipeline.py`
+- `src/mvsec_benchmark/models/evflownet_like.py`
+- `docs/AUTODL_RERUN_INSTRUCTIONS.md`
+- `docs/PROJECT_STATUS.md`
+- `docs/MVSEC_E100_EARLYSTOP_RESULTS_20260501.md`
+
+## Local Smoke Test
+
+The smoke tests use synthetic/mock data and do not require MVSEC downloads.
 
 ```bash
-cd D:\event-benchmark\mvsec-benchmark
 PYTHONPATH=src python -m unittest discover -s tests -p "test_*.py" -v
 python scripts/run_smoke.py
 python scripts/run_linear_suite.py
 ```
 
-The smoke test does not need MVSEC files. It uses synthetic event streams and
-checks that:
+## Rerun Note
 
-- each adapter can build a finite representation
-- a dummy flow head returns a finite flow map
-- AEE / outlier metrics are computed successfully
-- `scripts/run_smoke.py` prints a small JSON result table for the current
-  adapters
-- `scripts/run_linear_suite.py` creates a tiny mock MVSEC pair, trains a
-  CPU-friendly linear flow head, and evaluates the six runnable methods
-
-## Tiny end-to-end benchmark loop
-
-This repository now includes a very small end-to-end path that does not require
-full MVSEC downloads:
-
-1. `scripts/make_mock_mvsec.py` creates a tiny HDF5 + NPZ pair
-2. `src/mvsec_benchmark/data/mvsec.py` slices event windows from that pair
-3. one adapter builds a representation tensor
-4. `LinearFlowRegressor` fits a per-pixel linear flow head
-5. the benchmark reports AEE / outlier on held-out windows
-
-Run one method:
+Use the updated runner for the next formal rerun:
 
 ```bash
-cd D:\event-benchmark\mvsec-benchmark
-python scripts/run_linear_benchmark.py --adapter est --use-mock
+OMP_NUM_THREADS=8 BATCH_SIZE=8 bash scripts/run_mvsec_100e_all_early_stop.sh
+python scripts/build_mvsec_e100_outputs.py \
+  --results-dir results \
+  --curve-dir logs/curves \
+  --summary-dir results/summary \
+  --figures-dir results/figures
 ```
-
-Run all six runnable methods:
-
-```bash
-cd D:\event-benchmark\mvsec-benchmark
-python scripts/run_linear_suite.py
-```
-
-## Shared learned decoder path
-
-The repository now also has a shared learned optical-flow decoder path for the
-real benchmark direction:
-
-- model: `src/mvsec_benchmark/models/evflownet_like.py`
-- pipeline entry: `run_torch_benchmark(...)`
-- script: `scripts/run_torch_benchmark.py`
-
-This path is intended to become the pre-rental and post-rental shared decoder
-for real MVSEC experiments.
-
-Example:
-
-```bash
-cd D:\event-benchmark\mvsec-benchmark
-.venv\Scripts\python.exe scripts\run_torch_benchmark.py --adapter est --use-mock --epochs 5
-```
-
-Run all six runnable methods through the shared learned decoder:
-
-```bash
-cd D:\event-benchmark\mvsec-benchmark
-.venv\Scripts\python.exe scripts\run_torch_suite.py --epochs 3
-```
-
-## Recommended real-data plan
-
-### AutoDL / UPenn ROS bag route
-
-On AutoDL, direct Google Drive downloads for the official MVSEC HDF5 and
-`*_gt_flow_dist.npz` files can be unreliable. The UPenn-hosted ROS bag files are
-reachable and can be downloaded with `aria2`:
-
-```bash
-mkdir -p /root/autodl-tmp/capstone/data/mvsec/indoor_flying1
-cd /root/autodl-tmp/capstone/data/mvsec/indoor_flying1
-aria2c -x 16 -s 16 -k 1M --file-allocation=none \
-  -o indoor_flying1_data.bag \
-  https://visiondata.cis.upenn.edu/mvsec/indoor_flying/indoor_flying1_data.bag
-```
-
-Inspect the bag and export left-camera events into a lightweight HDF5 file:
-
-```bash
-python scripts/inspect_rosbag.py /root/autodl-tmp/capstone/data/mvsec/indoor_flying1/indoor_flying1_data.bag
-python scripts/convert_mvsec_bag_events.py \
-  /root/autodl-tmp/capstone/data/mvsec/indoor_flying1/indoor_flying1_data.bag \
-  --topic /davis/left/events \
-  --max-events 200000 \
-  --output /root/autodl-tmp/capstone/data/mvsec/indoor_flying1/indoor_flying1_left_events_200k.h5
-```
-
-This route verifies real MVSEC events without a ROS installation. It still needs
-real flow ground truth before producing paper-comparable AEE numbers.
-
-### Unified flow head
-
-For the real MVSEC benchmark, the recommended choice is a single shared
-EV-FlowNet-like decoder for all six runnable methods.
-
-Why:
-
-- it keeps the benchmark focused on representation quality instead of changing
-  both the representation and the downstream optical-flow network at once
-- it is easier to explain in the final report
-- it is a much fairer comparison than letting each method pick a different
-  decoder or training stack
-
-The current `LinearFlowRegressor` is only the local bring-up head. It exists to
-prove that the full `data -> adapter -> train -> evaluate` loop already works
-before renting GPUs.
-
-### Completed real-data protocol
-
-The tiny real-data smoke tests, indoor-only controlled experiments, and the
-formal outdoor-train / indoor-test run have all completed. The current formal
-run command is captured in `scripts/autodl_outdoor_pipeline.sh`.
-
-Use this only if a rerun is needed:
-
-```bash
-cd /root/autodl-tmp/capstone/5703
-bash scripts/autodl_outdoor_pipeline.sh
-```
-
-This route uses the full original-style split:
-
-1. training: `outdoor_day1 + outdoor_day2`
-2. testing: `indoor_flying1/2/3`
-3. methods: `EST`, `ERGO`, `Event Pre-training`, `GET`, `MatrixLSTM`, `EvRepSL`
-4. keep the same flow head and the same metrics
-
-## Next implementation steps
-
-1. Use the formal table above in the report as an adapted reproduction result.
-2. State the limitations clearly: shared decoder, one epoch, and index-based
-   event-window / flow-frame pairing.
-3. If stronger numeric claims are needed, rerun the exact same protocol for more
-   epochs without changing the data split or decoder.
-4. Only after that, consider paper-specific decoder/backbone work.
