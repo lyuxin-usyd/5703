@@ -1,11 +1,12 @@
 # MVSEC Optical Flow Task Review
 
-This document records the current optical-flow benchmark status for the
-completed E100 early-stop result package.
+This document records the current optical-flow benchmark state after removing
+the old result package.
 
 ## What Is Complete
 
-The optical-flow benchmark has a closed runnable path for six local methods:
+The repository contains a runnable unified downstream benchmark path for six
+local methods:
 
 - `est`
 - `ergo`
@@ -15,14 +16,15 @@ The optical-flow benchmark has a closed runnable path for six local methods:
 - `matrixlstm`
 
 `OmniEvent✳` is not reproduced locally. It is included only as a paper-reported
-reference row.
+reference when needed for comparison discussion.
 
 ## Current Formal Protocol
 
 - train: `outdoor_day1 + outdoor_day2`
 - eval: `indoor_flying1 + indoor_flying2 + indoor_flying3`
 - event cap: 6M events per sequence HDF5
-- flow GT: full generated `*_gt_flow_full.npz`
+- flow GT: generated flow files with timestamps
+- corrected `indoor_flying1` GT: `indoor_flying1_gt_flow_2000.npz`, 1398 frames
 - decoder: shared `EVFlowNetLike`
 - max epochs: 100
 - batch size: 8
@@ -31,27 +33,25 @@ reference row.
 - event/flow pairing: timestamp-aligned event intervals from flow GT timestamps
 - metrics: AEE/EPE and KITTI-style outlier percentage
 
-## Current Result Table
+## Result State
 
-| Method | AEE | Outlier % | Train windows | Eval windows | Valid count |
-|---|---:|---:|---:|---:|---:|
-| ergo | 2.9713 | 38.31 | 16329 | 3583 | 322326680 |
-| est | 2.8654 | 37.04 | 16329 | 3583 | 322326680 |
-| event_pretraining | 2.9653 | 38.19 | 16329 | 3583 | 322326680 |
-| evrepsl | 3.0180 | 39.06 | 16329 | 3583 | 322326680 |
-| get | 2.9619 | 38.34 | 16329 | 3583 | 322326680 |
-| matrixlstm | 3.0138 | 38.97 | 16329 | 3583 | 322326680 |
-| OmniEvent✳ | 0.9900 | 3.24 | paper | paper | paper |
+No current formal result table is committed. The previous table, figures, JSON
+logs, and curve artifacts were removed because they came from the pre-correction
+state and should not be treated as final.
 
-✳ OmniEvent values are simple averages from the OmniEvent paper's MVSEC
-`indoor_flying1/2/3` results. Source:
-[arXiv:2508.01842](https://arxiv.org/abs/2508.01842), Table 2.
+The next accepted result should include:
+
+- new per-method JSON outputs under `results/`
+- new logs under `logs/`
+- new curve CSV files under `logs/curves/`
+- rebuilt summary CSV and Markdown under `results/summary/`
+- rebuilt SVG figures under `results/figures/`
 
 ## Reporting Boundary
 
-The current result is an adapted reproduction / unified downstream benchmark.
-It should not be presented as a paper-identical reproduction of every original
-optical-flow training stack.
+The current project should be described as an adapted reproduction / unified
+downstream benchmark. It should not be presented as a paper-identical
+reproduction of every original optical-flow training stack.
 
 Known limitations:
 
@@ -68,13 +68,14 @@ The benchmark uses preprocessed MVSEC event and flow files:
 
 ```text
 *_left_events_6m.h5
-*_gt_flow_full.npz
+*_gt_flow_full.npz or corrected generated flow npz
 ```
 
 The raw data files are not committed to GitHub. The repository keeps the
-preprocessing scripts and the exact run script:
+preprocessing scripts, sanity checks, and exact run scripts:
 
 - `scripts/convert_mvsec_bag_events.py`
 - `scripts/generate_mvsec_flow_from_gt_bag.py`
+- `scripts/check_mvsec_alignment.py`
 - `scripts/run_mvsec_100e_all_early_stop.sh`
 - `scripts/build_mvsec_e100_outputs.py`

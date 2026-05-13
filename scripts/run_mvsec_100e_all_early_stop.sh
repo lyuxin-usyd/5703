@@ -6,10 +6,11 @@ if [[ $# -gt 0 ]]; then
   METHODS=("$@")
 fi
 
-DATA_ROOT="${DATA_ROOT:-/root/autodl-tmp/capstone/data/mvsec}"
+DATA_ROOT="${DATA_ROOT:-}"
 OUT_DIR="${OUT_DIR:-results}"
 LOG_DIR="${LOG_DIR:-logs}"
 CURVE_DIR="${CURVE_DIR:-logs/curves}"
+PACKAGE_DIR="${PACKAGE_DIR:-.}"
 EPOCHS="${EPOCHS:-100}"
 PATIENCE="${PATIENCE:-10}"
 MIN_DELTA="${MIN_DELTA:-0.001}"
@@ -20,6 +21,29 @@ WANDB_PROJECT="${WANDB_PROJECT:-}"
 WANDB_MODE="${WANDB_MODE:-offline}"
 BATCH_SIZE="${BATCH_SIZE:-8}"
 EVAL_BATCH_SIZE="${EVAL_BATCH_SIZE:-1}"
+
+if [[ -z "$DATA_ROOT" ]]; then
+  cat >&2 <<'EOF'
+ERROR: DATA_ROOT is not set.
+
+Set DATA_ROOT to the processed MVSEC folder before running, for example:
+
+  DATA_ROOT=/path/to/mvsec OMP_NUM_THREADS=8 BATCH_SIZE=8 bash scripts/run_mvsec_100e_all_early_stop.sh
+
+Expected files include:
+  outdoor_day/outdoor_day1_left_events_6m.h5
+  outdoor_day/outdoor_day1_gt_flow_full.npz
+  outdoor_day/outdoor_day2_left_events_6m.h5
+  outdoor_day/outdoor_day2_gt_flow_full.npz
+  indoor_flying1/indoor_flying1_left_events_6m.h5
+  indoor_flying/indoor_flying1_gt_flow_2000.npz
+  indoor_flying/indoor_flying2_left_events_6m.h5
+  indoor_flying/indoor_flying2_gt_flow_full.npz
+  indoor_flying/indoor_flying3_left_events_6m.h5
+  indoor_flying/indoor_flying3_gt_flow_full.npz
+EOF
+  exit 2
+fi
 
 # Prefer the corrected indoor_flying1 generated GT file unless explicitly overridden.
 IF1_FLOW="${IF1_FLOW:-$DATA_ROOT/indoor_flying/indoor_flying1_gt_flow_2000.npz}"
@@ -63,6 +87,7 @@ for method in "${METHODS[@]}"; do
   echo "===== done ${method} ====="
 done
 
-tar -czf "/root/autodl-tmp/capstone/mvsec_original_protocol_e${EPOCHS}_earlystop_results_$(date +%Y%m%d_%H%M).tar.gz" "$OUT_DIR" "$LOG_DIR" docs README.md
+PACKAGE_PATH="$PACKAGE_DIR/mvsec_timestamp_bs8_e${EPOCHS}_earlystop_results_$(date +%Y%m%d_%H%M).tar.gz"
+tar -czf "$PACKAGE_PATH" "$OUT_DIR" "$LOG_DIR" docs README.md README_FOR_GROUP.md
 echo "===== all done ====="
-ls -lh /root/autodl-tmp/capstone/mvsec_original_protocol_e*_earlystop_results_*.tar.gz
+ls -lh "$PACKAGE_PATH"

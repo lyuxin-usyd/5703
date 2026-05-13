@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -200,10 +201,18 @@ def _default_pairs(data_root: Path) -> list[SequencePair]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Check MVSEC event/flow timestamp alignment.")
-    parser.add_argument("--data-root", type=Path, default=Path("/root/autodl-tmp/capstone/data/mvsec"))
+    parser.add_argument(
+        "--data-root",
+        type=Path,
+        default=Path(os.environ["DATA_ROOT"]) if os.environ.get("DATA_ROOT") else None,
+        help="Processed MVSEC folder. Can also be provided via DATA_ROOT.",
+    )
     parser.add_argument("--window-size", type=int, default=200)
     parser.add_argument("--stride", type=int, default=200)
     args = parser.parse_args()
+
+    if args.data_root is None:
+        raise SystemExit("Set --data-root or DATA_ROOT to the processed MVSEC folder.")
 
     print(f"data_root={args.data_root}")
     print(f"index protocol window_size={args.window_size}, stride={args.stride}")

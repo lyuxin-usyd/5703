@@ -86,7 +86,7 @@ class OmniEventAdapter:
 
     To upgrade to the real EP2T network, set use_neural=True and provide
     the cloned OmniEvent repo path after PointTransformerV3 dependencies
-    are set up on AutoDL.
+    are installed.
     """
 
     spec: AdapterSpec

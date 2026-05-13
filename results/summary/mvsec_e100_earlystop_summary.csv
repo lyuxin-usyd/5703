@@ -1,7 +1,0 @@
-method,aee,outlier_percent,non_outlier_percent,epochs_completed,best_epoch,best_val_aee,early_stopped,train_windows,eval_windows,valid_count,file
-ergo,2.9713224397336444,38.30534351050307,61.69465648949693,20,10,2.6049202353358267,True,16329,3583,322326680,artifacts/e100_earlystop_20260501/results/original_od12_if123_full6m_ergo_e100_block-random_earlystop.json
-est,2.8654466601363646,37.03915387953613,62.96084612046387,11,1,2.6380313799977304,True,16329,3583,322326680,artifacts/e100_earlystop_20260501/results/original_od12_if123_full6m_est_e100_block-random_earlystop.json
-event_pretraining,2.9653450954968523,38.19319083359776,61.80680916640224,20,10,2.6004124106168747,True,16329,3583,322326680,artifacts/e100_earlystop_20260501/results/original_od12_if123_full6m_event_pretraining_e100_block-random_earlystop.json
-evrepsl,3.018016725936616,39.06201311042573,60.93798688957427,15,5,2.624266781270504,True,16329,3583,322326680,artifacts/e100_earlystop_20260501/results/original_od12_if123_full6m_evrepsl_e100_block-random_earlystop.json
-get,2.9619312584649706,38.34222969069765,61.65777030930235,22,12,2.6006531483531,True,16329,3583,322326680,artifacts/e100_earlystop_20260501/results/original_od12_if123_full6m_get_e100_block-random_earlystop.json
-matrixlstm,3.0138228042246142,38.97055806860295,61.02944193139705,22,12,2.607129846274853,True,16329,3583,322326680,artifacts/e100_earlystop_20260501/results/original_od12_if123_full6m_matrixlstm_e100_block-random_earlystop.json
