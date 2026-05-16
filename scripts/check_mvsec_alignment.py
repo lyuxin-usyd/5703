@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 import os
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
 import h5py
 import numpy as np
+from numpy.lib import format as np_format
 
 
 @dataclass(frozen=True)
@@ -60,6 +62,16 @@ def _find_events_dataset(h5: h5py.File) -> np.ndarray:
 def _load_events(path: Path) -> np.ndarray:
     with h5py.File(path, "r") as h5:
         return _find_events_dataset(h5)
+
+
+def _npz_array_header(path: Path, key: str) -> tuple[tuple[int, ...], np.dtype]:
+    """Read an array shape/dtype from an npz member without loading the array."""
+    with zipfile.ZipFile(path) as zf:
+        member = f"{key}.npy"
+        with zf.open(member) as raw:
+            version = np_format.read_magic(raw)
+            shape, _, dtype = np_format._read_array_header(raw, version)
+    return tuple(int(v) for v in shape), np.dtype(dtype)
 
 
 def _count_index_windows(num_events: int, flow_frames: int, window_size: int, stride: int) -> int:
@@ -162,16 +174,15 @@ def _summarize_pair(pair: SequencePair, window_size: int, stride: int) -> None:
     keys = list(data.keys())
     timestamps = np.asarray(data["timestamps"], dtype=np.float64) if "timestamps" in data else None
     if "x_flow_dist" in data:
-        flow_frames = int(data["x_flow_dist"].shape[0])
-        flow_shape = tuple(data["x_flow_dist"].shape)
+        flow_shape, flow_dtype = _npz_array_header(pair.flow_npz, "x_flow_dist")
+        flow_frames = int(flow_shape[0])
     elif "flow" in data:
-        flow_frames = int(data["flow"].shape[0]) if data["flow"].ndim == 4 else 1
-        flow_shape = tuple(data["flow"].shape)
+        flow_shape, flow_dtype = _npz_array_header(pair.flow_npz, "flow")
+        flow_frames = int(flow_shape[0]) if len(flow_shape) == 4 else 1
     else:
         first_key = keys[0]
-        arr = data[first_key]
-        flow_frames = int(arr.shape[0]) if arr.ndim == 4 else 1
-        flow_shape = tuple(arr.shape)
+        flow_shape, flow_dtype = _npz_array_header(pair.flow_npz, first_key)
+        flow_frames = int(flow_shape[0]) if len(flow_shape) == 4 else 1
 
     index_windows = _count_index_windows(len(events), flow_frames, window_size, stride)
     index_event_end = min(index_windows * stride + max(window_size - stride, 0), len(events))
@@ -182,7 +193,7 @@ def _summarize_pair(pair: SequencePair, window_size: int, stride: int) -> None:
     for warning in quality_warnings:
         print(warning)
     print(f"npz keys: {keys}")
-    print(f"flow shape: {flow_shape}, frames={flow_frames:,}")
+    print(f"flow shape: {flow_shape}, dtype={flow_dtype}, frames={flow_frames:,}")
     if timestamps is None:
         print("flow timestamps: MISSING")
     else:
