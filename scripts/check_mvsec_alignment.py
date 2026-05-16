@@ -79,6 +79,7 @@ def _timestamp_protocol_stats(events_t: np.ndarray, timestamps: np.ndarray) -> t
     diffs = np.diff(timestamps)
     positive = diffs[diffs > 0]
     first_dt = float(np.median(positive)) if positive.size else 0.0
+    boundary_eps = max(1e-6, first_dt * 1e-6) if first_dt > 0 else 1e-6
     used_indices: set[int] = set()
     windows = 0
     for idx, end_t in enumerate(timestamps):
@@ -86,15 +87,53 @@ def _timestamp_protocol_stats(events_t: np.ndarray, timestamps: np.ndarray) -> t
             start_t = max(float(events_t[0]), float(end_t) - first_dt) if first_dt > 0 else float(events_t[0])
         else:
             start_t = float(timestamps[idx - 1])
-        eps = max(1e-6, abs(float(end_t)) * 1e-9)
-        start = int(np.searchsorted(events_t, start_t + eps, side="right"))
-        end = int(np.searchsorted(events_t, float(end_t) + eps, side="right"))
+        start = int(np.searchsorted(events_t, start_t + boundary_eps, side="right"))
+        end = int(np.searchsorted(events_t, float(end_t) + boundary_eps, side="right"))
         if end <= start:
             continue
         windows += 1
         used_indices.update(range(start, end))
     used = len(used_indices)
     return windows, used, 100.0 * used / max(len(events_t), 1)
+
+
+def _event_timestamp_quality(events_t: np.ndarray, dtype: np.dtype) -> list[str]:
+    warnings: list[str] = []
+    if len(events_t) < 2:
+        warnings.append("WARNING: fewer than two event timestamps")
+        return warnings
+
+    diffs = np.diff(events_t)
+    zero_diffs = int((diffs == 0).sum())
+    negative_diffs = int((diffs < 0).sum())
+    positive = diffs[diffs > 0]
+    sample_n = min(10_000, len(events_t))
+    unique_sample = int(np.unique(events_t[:sample_n]).size)
+
+    print(f"event timestamp dtype: {dtype}")
+    print(f"event timestamp unique in first {sample_n:,}: {unique_sample:,}/{sample_n:,}")
+    print(f"event timestamp zero diffs: {zero_diffs:,}/{len(diffs):,}")
+    print(f"event timestamp negative diffs: {negative_diffs:,}/{len(diffs):,}")
+    if positive.size:
+        print(
+            "event timestamp positive dt min/median: "
+            f"{float(positive.min()):.9f} / {float(np.median(positive)):.9f}"
+        )
+    else:
+        print("event timestamp positive dt min/median: NONE")
+
+    if np.dtype(dtype) == np.dtype("float32") and float(np.nanmax(np.abs(events_t))) > 1_000_000:
+        warnings.append(
+            "WARNING: event timestamps are stored as float32 Unix-time seconds. "
+            "This loses sub-second precision for MVSEC-scale timestamps."
+        )
+    if unique_sample < max(10, sample_n // 100):
+        warnings.append("WARNING: very few unique event timestamps in the first sample window")
+    if zero_diffs > 0.5 * len(diffs):
+        warnings.append("WARNING: more than half of adjacent event timestamps are identical")
+    if negative_diffs:
+        warnings.append("WARNING: event timestamps are not sorted")
+    return warnings
 
 
 def _summarize_pair(pair: SequencePair, window_size: int, stride: int) -> None:
@@ -115,6 +154,7 @@ def _summarize_pair(pair: SequencePair, window_size: int, stride: int) -> None:
         return
 
     event_t = np.asarray(events[:, 2], dtype=np.float64)
+    quality_warnings = _event_timestamp_quality(event_t, events[:, 2].dtype)
     order_ok = bool(np.all(np.diff(event_t) >= 0))
     if not order_ok:
         event_t = np.sort(event_t)
@@ -140,6 +180,8 @@ def _summarize_pair(pair: SequencePair, window_size: int, stride: int) -> None:
 
     print(f"event rows: {len(events):,}")
     print(f"event time: {event_t[0]:.6f} -> {event_t[-1]:.6f}  sorted={order_ok}")
+    for warning in quality_warnings:
+        print(warning)
     print(f"npz keys: {keys}")
     print(f"flow shape: {flow_shape}, frames={flow_frames:,}")
     if timestamps is None:

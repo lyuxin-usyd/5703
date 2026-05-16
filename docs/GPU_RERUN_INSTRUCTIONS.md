@@ -53,6 +53,12 @@ DATA_ROOT/
     └── indoor_flying3_gt_flow_full.npz
 ```
 
+Important: the event HDF5 files must be generated with the current converter.
+Older processed event files may store Unix-time event timestamps as float32,
+which collapses sub-second timing. If the checker reports float32 timestamps or
+many identical adjacent timestamps, regenerate the event `.h5` files from the
+raw `.bag` files before running the benchmark.
+
 The important corrected file is `indoor_flying1_gt_flow_2000.npz`. It should
 have 1398 flow frames. Check it with:
 

@@ -22,6 +22,9 @@ downstream head.
 - Metrics: AEE/EPE and KITTI-style outlier percentage.
 - Event/flow pairing: timestamp-aligned event intervals from flow GT
   timestamps.
+- Data correction: event HDF5 timestamps must be stored with float64 precision.
+  Older processed event `.h5` files written with float32 Unix timestamps are not
+  suitable for the formal rerun.
 - Current result state: previous result artifacts were removed after an
   alignment/data issue was found. New results should be added only after the
   corrected rerun finishes.
@@ -36,13 +39,16 @@ The next formal run should use:
 - flow GT: generated flow files with timestamps
 - `indoor_flying1` GT: corrected 1398-frame
   `indoor_flying1_gt_flow_2000.npz`
+- event HDF5: regenerated with the current converter so the timestamp column is
+  float64, not float32
 - shared decoder: `src/mvsec_benchmark/models/evflownet_like.py`
 - method list: `ergo`, `est`, `event_pretraining`, `evrepsl`, `get`,
   `matrixlstm`
 
 Before launching the long run, use `scripts/check_mvsec_alignment.py` to check
-that each event file covers the corresponding flow timestamps. This is the main
-guard against repeating the earlier wrong-result problem.
+that each event file covers the corresponding flow timestamps and that event
+timestamps are not collapsed. This is the main guard against repeating the
+earlier wrong-result problem.
 
 ```bash
 python scripts/check_mvsec_alignment.py --data-root /path/to/processed/mvsec

@@ -23,6 +23,7 @@ reference when needed for comparison discussion.
 - train: `outdoor_day1 + outdoor_day2`
 - eval: `indoor_flying1 + indoor_flying2 + indoor_flying3`
 - event cap: 6M events per sequence HDF5
+- event timestamp precision: float64 required for Unix-time event timestamps
 - flow GT: generated flow files with timestamps
 - corrected `indoor_flying1` GT: `indoor_flying1_gt_flow_2000.npz`, 1398 frames
 - decoder: shared `EVFlowNetLike`
@@ -38,6 +39,11 @@ reference when needed for comparison discussion.
 No current formal result table is committed. The previous table, figures, JSON
 logs, and curve artifacts were removed because they came from the pre-correction
 state and should not be treated as final.
+
+The older processed event tar files may also be invalid if their HDF5 timestamp
+column was written as float32. Those files cannot recover sub-second timing
+after the fact; regenerate event HDF5 files from raw bags with the current
+converter before accepting new results.
 
 The next accepted result should include:
 

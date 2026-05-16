@@ -33,14 +33,14 @@ def _find_events_dataset(h5: h5py.File) -> np.ndarray:
         if key in h5:
             arr = np.asarray(h5[key])
             if arr.ndim == 2 and arr.shape[1] >= 4:
-                return arr[:, :4].astype(np.float32, copy=False)
+                return arr[:, :4].astype(np.float64, copy=False)
 
     def _visit(name: str, obj: h5py.Dataset) -> np.ndarray | None:
         if not isinstance(obj, h5py.Dataset):
             return None
         arr = np.asarray(obj)
         if arr.ndim == 2 and arr.shape[1] >= 4:
-            return arr[:, :4].astype(np.float32, copy=False)
+            return arr[:, :4].astype(np.float64, copy=False)
         return None
 
     found: np.ndarray | None = None
@@ -65,11 +65,11 @@ def _find_events_dataset(h5: h5py.File) -> np.ndarray:
                     [
                         np.asarray(group["x"], dtype=np.float32),
                         np.asarray(group["y"], dtype=np.float32),
-                        np.asarray(group["t"], dtype=np.float32),
+                        np.asarray(group["t"], dtype=np.float64),
                         np.asarray(group["p"], dtype=np.float32),
                     ],
                     axis=1,
-                )
+                ).astype(np.float64, copy=False)
     raise KeyError("Could not find an MVSEC-style events dataset in the HDF5 file.")
 
 
@@ -181,7 +181,7 @@ def iter_event_windows(
             flow = gt_flow
 
         yield FlowWindowSample(
-            events=events[start:end].astype(np.float32, copy=False),
+            events=events[start:end].astype(np.float64, copy=False),
             gt_flow=np.asarray(flow, dtype=np.float32),
             sensor_size=sensor_size,
             meta={
@@ -221,6 +221,7 @@ def _iter_timestamp_event_windows(
     diffs = np.diff(flow_timestamps)
     positive_diffs = diffs[diffs > 0]
     first_dt = float(np.median(positive_diffs)) if positive_diffs.size else 0.0
+    boundary_eps = max(1e-6, first_dt * 1e-6) if first_dt > 0 else 1e-6
     n_yielded = 0
     for flow_idx, end_t in enumerate(flow_timestamps):
         if flow_idx == 0:
@@ -228,14 +229,13 @@ def _iter_timestamp_event_windows(
         else:
             start_t = float(flow_timestamps[flow_idx - 1])
 
-        eps = max(1e-6, abs(float(end_t)) * 1e-9)
-        start = int(np.searchsorted(event_t, start_t + eps, side="right"))
-        end = int(np.searchsorted(event_t, float(end_t) + eps, side="right"))
+        start = int(np.searchsorted(event_t, start_t + boundary_eps, side="right"))
+        end = int(np.searchsorted(event_t, float(end_t) + boundary_eps, side="right"))
         if end <= start:
             continue
 
         yield FlowWindowSample(
-            events=events[start:end].astype(np.float32, copy=False),
+            events=events[start:end].astype(np.float64, copy=False),
             gt_flow=np.asarray(gt_flow[flow_idx], dtype=np.float32),
             sensor_size=sensor_size,
             meta={

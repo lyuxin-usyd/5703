@@ -33,7 +33,7 @@ def write_mock_mvsec_pair(
     flow_path = root / f"{name}_flow.npz"
 
     with h5py.File(h5_path, "w") as h5:
-        h5.create_dataset("events", data=sample.events.astype(np.float32))
+        h5.create_dataset("events", data=sample.events.astype(np.float64))
 
     np.savez_compressed(flow_path, flow=sample.gt_flow.astype(np.float32))
     return h5_path, flow_path

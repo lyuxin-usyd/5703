@@ -8,13 +8,13 @@ from .base import AdapterSpec
 
 
 def _normalize_timestamps(t: np.ndarray) -> np.ndarray:
-    t = np.asarray(t, dtype=np.float32)
+    t = np.asarray(t, dtype=np.float64)
     if t.size == 0:
-        return t
+        return t.astype(np.float32)
     t_min, t_max = float(t.min()), float(t.max())
     if t_max <= t_min:
-        return np.zeros_like(t)
-    return (t - t_min) / (t_max - t_min)
+        return np.zeros_like(t, dtype=np.float32)
+    return ((t - t_min) / (t_max - t_min)).astype(np.float32)
 
 
 def omnievent_numpy_repr(

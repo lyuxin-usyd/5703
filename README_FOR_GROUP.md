@@ -26,6 +26,8 @@ only after the corrected rerun is complete.
 - flow GT: generated flow files with timestamps
 - important data check: `indoor_flying1_gt_flow_2000.npz` should have 1398
   flow frames
+- event HDF5 check: timestamp column should be float64. Older processed event
+  files with float32 Unix timestamps should be regenerated from raw bags.
 - decoder: shared `EVFlowNetLike`
 - training: max 100 epochs, batch size 8, early-stop patience 10
 - validation: block-random outdoor validation
@@ -45,8 +47,9 @@ python scripts/check_mvsec_alignment.py --data-root /path/to/processed/mvsec
 ```
 
 The checker should confirm that flow timestamps are covered by the event
-timestamp range. It should also make it obvious if `indoor_flying1` has the old
-20-frame GT file instead of the corrected 1398-frame file.
+timestamp range and that event timestamps have enough unique values. It should
+also make it obvious if `indoor_flying1` has the old 20-frame GT file instead
+of the corrected 1398-frame file.
 
 Main run:
 

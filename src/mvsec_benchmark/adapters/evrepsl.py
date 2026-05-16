@@ -34,7 +34,7 @@ def events_to_evrep(
     sorted_t = event_timestamps[sort_idx]
 
     if sorted_t.size:
-        dt = np.diff(sorted_t, prepend=sorted_t[0]).astype(np.float32)
+        dt = np.diff(sorted_t.astype(np.float64), prepend=float(sorted_t[0])).astype(np.float32)
         np.add.at(e_t_sum, (sorted_y, sorted_x), dt)
         np.add.at(e_t_sq_sum, (sorted_y, sorted_x), dt ** 2)
 
@@ -64,7 +64,7 @@ class EvRepSLAdapter:
 
         x = events[:, 0].astype(np.int64)
         y = events[:, 1].astype(np.int64)
-        t = events[:, 2].astype(np.float32)
+        t = events[:, 2].astype(np.float64)
         p = (events[:, 3] > 0).astype(np.int64)
 
         valid = (x >= 0) & (x < width) & (y >= 0) & (y < height)

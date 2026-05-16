@@ -4,12 +4,12 @@ import numpy as np
 
 
 def _normalize_timestamps(events: np.ndarray) -> np.ndarray:
-    t = events[:, 2].astype(np.float32)
+    t = events[:, 2].astype(np.float64)
     t_min = float(t.min())
     t_max = float(t.max())
     if t_max <= t_min:
-        return np.zeros_like(t)
-    return (t - t_min) / (t_max - t_min)
+        return np.zeros_like(t, dtype=np.float32)
+    return ((t - t_min) / (t_max - t_min)).astype(np.float32)
 
 
 def voxel_count_representation(

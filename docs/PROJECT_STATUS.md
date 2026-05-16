@@ -27,6 +27,7 @@ for discussion.
 - train: `outdoor_day1 + outdoor_day2`
 - evaluate: `indoor_flying1 + indoor_flying2 + indoor_flying3`
 - event input: 6M extracted left-camera events per sequence
+- required event data correction: event HDF5 timestamps stored as float64
 - flow GT: generated flow files with timestamps
 - required data correction: `indoor_flying1_gt_flow_2000.npz`, 1398 flow frames
 - decoder: shared `src/mvsec_benchmark/models/evflownet_like.py`
@@ -42,8 +43,10 @@ for discussion.
 The old result table mixed an earlier run with a later corrected protocol
 description. More importantly, `indoor_flying1` was found to have an old
 20-frame `*_gt_flow_full.npz` file in one setup, while a corrected 1398-frame
-generated file was available. Keeping the old table on GitHub would make the
-project look more finished than it is and could mislead the team.
+generated file was available. A second data issue was also found in the
+processed event HDF5 files: Unix-time event timestamps can be collapsed when
+stored as float32. Keeping the old table on GitHub would make the project look
+more finished than it is and could mislead the team.
 
 The safer state is:
 
@@ -56,6 +59,8 @@ The safer state is:
 
 - `scripts/check_mvsec_alignment.py` should show that each flow timestamp range
   is covered by its event timestamp range.
+- Event HDF5 timestamp dtype should not be float32 for Unix-time seconds, and
+  the first 10,000 events should not collapse to only a few unique timestamps.
 - `indoor_flying1_gt_flow_2000.npz` should report shape `(1398, 260, 346)` for
   `x_flow_dist`.
 - The JSON outputs should record `window_alignment: "timestamp"`.

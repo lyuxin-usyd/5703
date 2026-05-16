@@ -69,7 +69,9 @@ def _event_batch_to_array(message: object) -> np.ndarray:
     if events is None:
         raise ValueError("Selected topic does not contain an 'events' field.")
 
-    arr = np.empty((len(events), 4), dtype=np.float32)
+    # Keep timestamps in float64. MVSEC timestamps are Unix-time seconds around
+    # 1.5e9, where float32 cannot represent sub-second event timing.
+    arr = np.empty((len(events), 4), dtype=np.float64)
     for idx, event in enumerate(events):
         arr[idx, 0] = float(event.x)
         arr[idx, 1] = float(event.y)
@@ -114,7 +116,7 @@ def main() -> None:
                 shape=(0, 4),
                 maxshape=(None, 4),
                 chunks=(min(1_000_000, args.max_events or 1_000_000), 4),
-                dtype=np.float32,
+                dtype=np.float64,
             )
             for conn, _, rawdata in reader.messages(connections=connections):
                 message = typestore.deserialize_ros1(rawdata, conn.msgtype)

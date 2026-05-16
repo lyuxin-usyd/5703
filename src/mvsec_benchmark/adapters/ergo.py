@@ -58,7 +58,7 @@ def _surface_from_events(
 ) -> np.ndarray:
     x = events[:, 0].astype(np.int64)
     y = events[:, 1].astype(np.int64)
-    t = events[:, 2].astype(np.float32)
+    t = events[:, 2].astype(np.float64)
     p = events[:, 3].astype(np.int8)
 
     if func == "timestamp":
@@ -91,12 +91,12 @@ def _surface_from_events(
 def _normalize_timestamps(t: np.ndarray) -> np.ndarray:
     if t.size == 0:
         return t.astype(np.float32)
-    t = t.astype(np.float32)
+    t = t.astype(np.float64)
     t_min = float(t.min())
     t_max = float(t.max())
     if t_max <= t_min:
-        return np.zeros_like(t)
-    return (t - t_min) / (t_max - t_min)
+        return np.zeros_like(t, dtype=np.float32)
+    return ((t - t_min) / (t_max - t_min)).astype(np.float32)
 
 
 @dataclass
