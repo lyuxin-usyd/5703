@@ -236,7 +236,7 @@ def _default_pairs(data_root: Path) -> list[SequencePair]:
         SequencePair(
             "indoor_flying1",
             data_root / "indoor_flying1" / "indoor_flying1_left_events_6m.h5",
-            data_root / "indoor_flying" / "indoor_flying1_gt_flow_full.npz",
+            data_root / "indoor_flying" / "indoor_flying1_gt_flow_2000.npz",
         ),
         SequencePair(
             "indoor_flying2",
