@@ -80,7 +80,7 @@ def _timestamp_protocol_stats(events_t: np.ndarray, timestamps: np.ndarray) -> t
     positive = diffs[diffs > 0]
     first_dt = float(np.median(positive)) if positive.size else 0.0
     boundary_eps = max(1e-6, first_dt * 1e-6) if first_dt > 0 else 1e-6
-    used_indices: set[int] = set()
+    used = 0
     windows = 0
     for idx, end_t in enumerate(timestamps):
         if idx == 0:
@@ -92,8 +92,7 @@ def _timestamp_protocol_stats(events_t: np.ndarray, timestamps: np.ndarray) -> t
         if end <= start:
             continue
         windows += 1
-        used_indices.update(range(start, end))
-    used = len(used_indices)
+        used += end - start
     return windows, used, 100.0 * used / max(len(events_t), 1)
 
 

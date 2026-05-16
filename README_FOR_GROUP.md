@@ -47,9 +47,10 @@ python scripts/check_mvsec_alignment.py --data-root /path/to/processed/mvsec
 ```
 
 The checker should confirm that flow timestamps are covered by the event
-timestamp range and that event timestamps have enough unique values. It should
-also make it obvious if `indoor_flying1` has the old 20-frame GT file instead
-of the corrected 1398-frame file.
+timestamp range and that event timestamps have enough unique values. It is
+designed to run before training and does not require a GPU. It should also make
+it obvious if `indoor_flying1` has the old 20-frame GT file instead of the
+corrected 1398-frame file.
 
 Main run:
 
