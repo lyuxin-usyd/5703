@@ -13,8 +13,8 @@ Use one main environment for the runnable six-method MVSEC benchmark:
 | MatrixLSTM legacy fallback | `env_matrixlstm_legacy` | only if the official TensorFlow optical-flow path is needed later |
 
 The per-method requirement files are still checked in because they are useful as
-dependency references, but they do **not** imply that six or seven separate
-environments are the best workflow.
+dependency references, but they do **not** imply that six separate environments
+are the best workflow.
 
 ## Why this is the default
 
@@ -27,7 +27,7 @@ Notes:
 
 - MatrixLSTM is special. The official optical-flow repo is TensorFlow/Docker.
   The file here is for a future PyTorch adaptation into the unified benchmark.
-- OmniEvent code is still incomplete upstream. Its env file is provisional.
+- OmniEvent is not part of the local runnable benchmark.
 - Once the project moves to a GPU server, a single PyTorch environment is still
   the preferred default for `EST`, `ERGO`, `Event Pre-training`, `GET`, and
   `EvRepSL`.

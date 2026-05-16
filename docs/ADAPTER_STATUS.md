@@ -1,7 +1,8 @@
 # Adapter Status
 
-This file tracks how each of the seven methods should enter the unified MVSEC
-benchmark.
+This file tracks the six local runnable methods in the unified MVSEC benchmark.
+OmniEvent is kept only as a paper-reported reference row in reports, not as a
+local adapter.
 
 ## Legend
 
@@ -91,9 +92,8 @@ benchmark.
 ## OmniEvent
 
 - status: `reported-only`
-- current adapter: `omnievent`
-- next source:
-  - `refs/OmniEvent` once optical-flow-relevant code becomes usable
+- current adapter: none
+- local reproduction: no
 - goal:
-  - keep reported results separate from the six-method runnable benchmark
-  - only promote to runnable code if upstream optical-flow code becomes usable
+  - keep reported paper numbers separate from the six-method runnable benchmark
+  - do not treat OmniEvent as a local run in tables, rankings, or summaries

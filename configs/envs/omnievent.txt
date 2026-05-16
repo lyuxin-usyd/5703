@@ -1,5 +1,0 @@
--r common.txt
-torch
-torchvision
-timm
-einops

@@ -15,7 +15,7 @@ downstream head.
 - Test split: `indoor_flying1/2/3`.
 - Runnable methods: `ergo`, `est`, `event_pretraining`, `evrepsl`, `get`,
   `matrixlstm`.
-- Reported-only method: OmniEvent.
+- Paper-reference only: OmniEvent, not a local runnable method.
 - Decoder: shared `EVFlowNetLike`.
 - Training protocol: max 100 epochs, batch size 8, early-stop patience 10.
 - Validation: block-random validation sampled from outdoor training windows.
@@ -117,5 +117,4 @@ The smoke tests use synthetic/mock data and do not require MVSEC downloads.
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests -p "test_*.py" -v
 python scripts/run_smoke.py
-python scripts/run_linear_suite.py
 ```
