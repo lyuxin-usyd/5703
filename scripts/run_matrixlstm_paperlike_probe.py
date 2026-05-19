@@ -15,6 +15,20 @@ from mvsec_benchmark.paperlike import load_matrixlstm_paperlike_windows
 from mvsec_benchmark.pipeline import run_torch_train_eval_benchmark
 
 
+def _split_pair(item: str) -> tuple[str, str]:
+    if "::" in item:
+        return tuple(item.split("::", 1))  # type: ignore[return-value]
+    for marker in (".h5:", ".hdf5:"):
+        pos = item.lower().find(marker)
+        if pos >= 0:
+            split_at = pos + len(marker) - 1
+            return item[:split_at], item[split_at + 1:]
+    try:
+        return tuple(item.split(":", 1))  # type: ignore[return-value]
+    except ValueError as exc:
+        raise SystemExit(f"Expected H5:FLOW pair, got: {item}") from exc
+
+
 def _load_sets(
     pairs: list[str],
     *,
@@ -23,10 +37,7 @@ def _load_sets(
 ) -> list:
     samples = []
     for idx, item in enumerate(pairs, start=1):
-        try:
-            h5_raw, flow_raw = item.split(":", 1)
-        except ValueError as exc:
-            raise SystemExit(f"Expected H5:FLOW pair, got: {item}") from exc
+        h5_raw, flow_raw = _split_pair(item)
         print(f"[load:{label}] pair {idx}/{len(pairs)} h5={h5_raw}", flush=True)
         print(f"[load:{label}] pair {idx}/{len(pairs)} flow={flow_raw}", flush=True)
         loaded = load_matrixlstm_paperlike_windows(
