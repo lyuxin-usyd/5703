@@ -46,6 +46,19 @@ def event_valid_mask(events: np.ndarray, sensor_size: tuple[int, int]) -> np.nda
     return mask
 
 
+def event_gt_valid_mask(
+    events: np.ndarray,
+    gt_flow: np.ndarray,
+    sensor_size: tuple[int, int],
+) -> np.ndarray:
+    """Return the MatrixLSTM-style sparse evaluation mask."""
+    gt = ensure_hw2(gt_flow)
+    gt_mag = np.linalg.norm(gt, axis=-1)
+    finite_gt = np.isfinite(gt[..., 0]) & np.isfinite(gt[..., 1])
+    nonzero_gt = gt_mag > 0
+    return event_valid_mask(events, sensor_size) & finite_gt & nonzero_gt
+
+
 def compute_flow_metrics(
     pred_flow: np.ndarray,
     gt_flow: np.ndarray,

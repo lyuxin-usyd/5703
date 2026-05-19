@@ -10,7 +10,7 @@ import numpy as np
 from .adapters import build_adapters
 from .data.mvsec import FlowWindowSample
 from .models.linear_flow import LinearFlowRegressor
-from .utils.flow_metrics import FlowMetrics, compute_flow_metrics
+from .utils.flow_metrics import FlowMetrics, compute_flow_metrics, event_gt_valid_mask
 
 
 @dataclass(frozen=True)
@@ -70,10 +70,22 @@ def _count_sources(samples: list[FlowWindowSample]) -> dict[str, int]:
     return counts
 
 
-def _compute_benchmark_metrics(pred_flow: np.ndarray, sample: FlowWindowSample) -> FlowMetrics:
+def _compute_benchmark_metrics(
+    pred_flow: np.ndarray,
+    sample: FlowWindowSample,
+    *,
+    metric_scope: str = "full_gt_valid",
+) -> FlowMetrics:
+    if metric_scope == "full_gt_valid":
+        valid_mask = None
+    elif metric_scope in {"event_valid", "matrixlstm_paperlike"}:
+        valid_mask = event_gt_valid_mask(sample.events, sample.gt_flow, sample.sensor_size)
+    else:
+        raise ValueError("metric_scope must be 'full_gt_valid', 'event_valid', or 'matrixlstm_paperlike'.")
     return compute_flow_metrics(
         pred_flow,
         sample.gt_flow,
+        valid_mask=valid_mask,
         outlier_mode="kitti",
     )
 
@@ -295,6 +307,7 @@ def run_torch_train_eval_benchmark(
     wandb_project: str | None = None,
     wandb_run_name: str | None = None,
     wandb_mode: str | None = None,
+    metric_scope: str = "full_gt_valid",
 ) -> BenchmarkResult:
     """Train on one set of MVSEC windows and evaluate on a separate set.
 
@@ -317,6 +330,8 @@ def run_torch_train_eval_benchmark(
         raise ValueError("early_stop_val_windows must be > 0 when early stopping is enabled.")
     if early_stop_val_windows and early_stop_val_windows >= len(train_samples):
         raise ValueError("early_stop_val_windows must leave at least one training window.")
+    if metric_scope not in {"full_gt_valid", "event_valid", "matrixlstm_paperlike"}:
+        raise ValueError("metric_scope must be 'full_gt_valid', 'event_valid', or 'matrixlstm_paperlike'.")
 
     try:
         import torch
@@ -388,6 +403,7 @@ def run_torch_train_eval_benchmark(
                 "early_stop_min_delta": early_stop_min_delta,
                 "early_stop_val_windows": early_stop_val_windows,
                 "early_stop_val_strategy": early_stop_val_strategy,
+                "metric_scope": metric_scope,
                 "train_windows": len(effective_train_samples),
                 "val_windows": len(val_samples),
                 "eval_windows": len(eval_samples),
@@ -400,7 +416,8 @@ def run_torch_train_eval_benchmark(
     _progress(
         f"[setup] adapter={adapter_name} train_windows={len(effective_train_samples)} "
         f"val_windows={len(val_samples)} eval_windows={len(eval_samples)} "
-        f"val_strategy={early_stop_val_strategy if val_samples else 'none'}"
+        f"val_strategy={early_stop_val_strategy if val_samples else 'none'} "
+        f"metric_scope={metric_scope}"
     )
     _progress("[setup] building first representation")
     first_rep = adapter.build(effective_train_samples[0].events, effective_train_samples[0].sensor_size)
@@ -448,7 +465,7 @@ def run_torch_train_eval_benchmark(
                     eval_index = start + offset
                     sample = samples[eval_index]
                     pred_hw2 = np.moveaxis(pred, 0, -1)
-                    metric = _compute_benchmark_metrics(pred_hw2, sample)
+                    metric = _compute_benchmark_metrics(pred_hw2, sample, metric_scope=metric_scope)
                     metrics.append(metric)
                     if collect_window_metrics:
                         window_metrics.append(
@@ -604,6 +621,7 @@ def run_torch_train_eval_benchmark(
                 "eval/aee": float(mean_aee),
                 "eval/outlier_percent": float(mean_outlier),
                 "eval/valid_count": int(valid_count),
+                "eval/metric_scope": metric_scope,
             },
             step=int(epochs_completed),
         )
@@ -616,6 +634,7 @@ def run_torch_train_eval_benchmark(
         aee=float(mean_aee),
         outlier_percent=float(mean_outlier),
         valid_count=int(valid_count),
+        metric_scope=metric_scope,
         window_metrics=window_metrics if return_window_metrics else None,
         epochs_completed=int(epochs_completed),
         early_stopped=bool(early_stopped) if early_stop_patience is not None else None,
