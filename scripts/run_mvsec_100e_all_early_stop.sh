@@ -14,7 +14,7 @@ PACKAGE_DIR="${PACKAGE_DIR:-.}"
 EPOCHS="${EPOCHS:-100}"
 PATIENCE="${PATIENCE:-10}"
 MIN_DELTA="${MIN_DELTA:-0.001}"
-VAL_WINDOWS="${VAL_WINDOWS:-1000}"
+VAL_WINDOWS="${VAL_WINDOWS:-20}"
 VAL_STRATEGY="${VAL_STRATEGY:-block-random}"
 PROGRESS_EVERY="${PROGRESS_EVERY:-100}"
 WANDB_PROJECT="${WANDB_PROJECT:-}"
@@ -87,7 +87,7 @@ for method in "${METHODS[@]}"; do
   echo "===== done ${method} ====="
 done
 
-PACKAGE_PATH="$PACKAGE_DIR/mvsec_eventvalid_timestamp_bs8_e${EPOCHS}_earlystop_results_$(date +%Y%m%d_%H%M).tar.gz"
+PACKAGE_PATH="$PACKAGE_DIR/mvsec_timestamp_vw${VAL_WINDOWS}_bs${BATCH_SIZE}_e${EPOCHS}_earlystop_results_$(date +%Y%m%d_%H%M).tar.gz"
 tar -czf "$PACKAGE_PATH" "$OUT_DIR" "$LOG_DIR" docs README.md README_FOR_GROUP.md
 echo "===== all done ====="
 ls -lh "$PACKAGE_PATH"

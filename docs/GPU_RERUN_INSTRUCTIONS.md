@@ -30,8 +30,7 @@ The updated runner uses:
 - early-stop patience: 10
 - validation: block-random outdoor validation
 - event/flow pairing: timestamp-aligned event intervals from flow GT timestamps
-- metrics: event-valid AEE / KITTI-style Outlier, evaluated only on pixels that
-  fired at least one event in the corresponding event window
+- metrics: AEE / KITTI-style Outlier over valid GT flow pixels
 
 ## 2. Prepare Data
 
@@ -110,7 +109,7 @@ The runner writes:
 - per-method curve CSV files under `logs/curves/`
 - a packaged result archive in the current `optical-flow/` folder
 
-The JSON field `metric_scope` should be `event_valid`.
+The JSON field `metric_scope` should be `full_gt_valid`.
 
 If GPU memory is tight, keep `BATCH_SIZE=8` first and only lower it if the run
 fails with CUDA out-of-memory.

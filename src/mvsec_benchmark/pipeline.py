@@ -10,7 +10,7 @@ import numpy as np
 from .adapters import build_adapters
 from .data.mvsec import FlowWindowSample
 from .models.linear_flow import LinearFlowRegressor
-from .utils.flow_metrics import FlowMetrics, compute_flow_metrics, event_valid_mask
+from .utils.flow_metrics import FlowMetrics, compute_flow_metrics
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,7 @@ class BenchmarkResult:
     aee: float
     outlier_percent: float
     valid_count: int
-    metric_scope: str = "event_valid"
+    metric_scope: str = "full_gt_valid"
     window_metrics: list[dict[str, float | int]] | None = None
     epochs_completed: int | None = None
     early_stopped: bool | None = None
@@ -70,11 +70,10 @@ def _count_sources(samples: list[FlowWindowSample]) -> dict[str, int]:
     return counts
 
 
-def _compute_event_valid_metrics(pred_flow: np.ndarray, sample: FlowWindowSample) -> FlowMetrics:
+def _compute_benchmark_metrics(pred_flow: np.ndarray, sample: FlowWindowSample) -> FlowMetrics:
     return compute_flow_metrics(
         pred_flow,
         sample.gt_flow,
-        valid_mask=event_valid_mask(sample.events, sample.sensor_size),
         outlier_mode="kitti",
     )
 
@@ -170,7 +169,7 @@ def run_linear_benchmark(
     for sample in eval_samples:
         rep = adapter.build(sample.events, sample.sensor_size)
         pred = model.predict(rep)
-        metrics.append(_compute_event_valid_metrics(pred, sample))
+        metrics.append(_compute_benchmark_metrics(pred, sample))
 
     mean_aee = sum(m.aee for m in metrics) / len(metrics)
     mean_outlier = sum(m.outlier_percent for m in metrics) / len(metrics)
@@ -245,7 +244,7 @@ def run_torch_benchmark(
                 eval_index = start + offset
                 sample = eval_samples[eval_index]
                 pred_hw2 = np.moveaxis(pred, 0, -1)
-                metric = _compute_event_valid_metrics(pred_hw2, sample)
+                metric = _compute_benchmark_metrics(pred_hw2, sample)
                 metrics.append(metric)
                 if return_window_metrics:
                     window_metrics.append(
@@ -449,7 +448,7 @@ def run_torch_train_eval_benchmark(
                     eval_index = start + offset
                     sample = samples[eval_index]
                     pred_hw2 = np.moveaxis(pred, 0, -1)
-                    metric = _compute_event_valid_metrics(pred_hw2, sample)
+                    metric = _compute_benchmark_metrics(pred_hw2, sample)
                     metrics.append(metric)
                     if collect_window_metrics:
                         window_metrics.append(

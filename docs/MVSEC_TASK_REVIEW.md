@@ -32,9 +32,8 @@ reference when needed for comparison discussion.
 - early stopping: patience 10
 - validation: block-random outdoor validation
 - event/flow pairing: timestamp-aligned event intervals from flow GT timestamps
-- metrics: event-valid AEE/EPE and KITTI-style outlier percentage. Only pixels
-  that fired at least one event in the corresponding event window are used,
-  with invalid GT pixels excluded.
+- metrics: AEE/EPE and KITTI-style outlier percentage over valid GT flow
+  pixels.
 
 ## Result State
 
