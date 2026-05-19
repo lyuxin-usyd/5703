@@ -87,7 +87,7 @@ for method in "${METHODS[@]}"; do
   echo "===== done ${method} ====="
 done
 
-PACKAGE_PATH="$PACKAGE_DIR/mvsec_timestamp_bs8_e${EPOCHS}_earlystop_results_$(date +%Y%m%d_%H%M).tar.gz"
+PACKAGE_PATH="$PACKAGE_DIR/mvsec_eventvalid_timestamp_bs8_e${EPOCHS}_earlystop_results_$(date +%Y%m%d_%H%M).tar.gz"
 tar -czf "$PACKAGE_PATH" "$OUT_DIR" "$LOG_DIR" docs README.md README_FOR_GROUP.md
 echo "===== all done ====="
 ls -lh "$PACKAGE_PATH"

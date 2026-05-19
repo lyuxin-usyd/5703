@@ -25,6 +25,27 @@ def ensure_hw2(flow: np.ndarray) -> np.ndarray:
     raise ValueError(f"Expected flow shape (H,W,2) or (2,H,W), got {arr.shape}")
 
 
+def event_valid_mask(events: np.ndarray, sensor_size: tuple[int, int]) -> np.ndarray:
+    """Return the sparse MVSEC mask: pixels that fired at least one event."""
+    height, width = sensor_size
+    mask = np.zeros((height, width), dtype=bool)
+    events_arr = np.asarray(events)
+    if events_arr.size == 0:
+        return mask
+
+    xy = events_arr[:, :2]
+    finite = np.isfinite(xy[:, 0]) & np.isfinite(xy[:, 1])
+    if not np.any(finite):
+        return mask
+
+    x = xy[finite, 0].astype(np.int64, copy=False)
+    y = xy[finite, 1].astype(np.int64, copy=False)
+    in_bounds = (x >= 0) & (x < width) & (y >= 0) & (y < height)
+    if np.any(in_bounds):
+        mask[y[in_bounds], x[in_bounds]] = True
+    return mask
+
+
 def compute_flow_metrics(
     pred_flow: np.ndarray,
     gt_flow: np.ndarray,

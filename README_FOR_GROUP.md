@@ -32,6 +32,8 @@ only after the corrected rerun is complete.
 - training: max 100 epochs, batch size 8, early-stop patience 10
 - validation: block-random outdoor validation
 - event/flow pairing: timestamp-aligned event intervals from flow GT timestamps
+- metrics: event-valid AEE / KITTI-style Outlier, evaluated only on pixels that
+  fired at least one event in the corresponding event window
 - runnable methods: `ergo`, `est`, `event_pretraining`, `evrepsl`, `get`,
   `matrixlstm`
 
@@ -90,6 +92,7 @@ MVSEC unified downstream optical-flow benchmark / adapted reproduction.
 Six runnable event representations are compared under the same EVFlowNet-like
 decoder and the same outdoor-train / indoor-test protocol.
 Event windows use timestamp-aligned intervals from flow GT timestamps.
+Formal results report event-valid sparse-flow AEE / Outlier.
 ```
 
 Avoid:
