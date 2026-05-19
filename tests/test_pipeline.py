@@ -332,6 +332,41 @@ class PipelineTest(unittest.TestCase):
             self.assertGreaterEqual(len(lines), 2)
             self.assertEqual(lines[0], "epoch,train_loss,val_aee,best_val_aee,is_best,stale_epochs,early_stopped")
 
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "torch is not installed in this interpreter")
+    def test_torch_train_eval_benchmark_accepts_image_pair_regularizers(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            h5_path, flow_path = write_mock_mvsec_pair(Path(tmpdir), num_events=1000)
+            samples = load_mvsec_windows(
+                h5_path=h5_path,
+                flow_path=flow_path,
+                window_size=200,
+                stride=200,
+                max_windows=4,
+            )
+            import numpy as np
+
+            for sample in samples:
+                height, width = sample.sensor_size
+                object.__setattr__(sample, "prev_image", np.zeros((height, width), dtype=np.float32))
+                object.__setattr__(sample, "next_image", np.zeros((height, width), dtype=np.float32))
+
+            result = run_torch_train_eval_benchmark(
+                samples[:3],
+                samples[3:],
+                adapter_name="est",
+                epochs=1,
+                base_channels=4,
+                batch_size=2,
+                eval_batch_size=1,
+                device="cpu",
+                progress_every=0,
+                photometric_weight=0.1,
+                smoothness_weight=0.05,
+            )
+            self.assertEqual(result.train_windows, 3)
+            self.assertEqual(result.eval_windows, 1)
+            self.assertGreater(result.valid_count, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

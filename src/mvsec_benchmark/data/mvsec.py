@@ -14,6 +14,8 @@ class FlowWindowSample:
     gt_flow: np.ndarray
     sensor_size: tuple[int, int]
     meta: dict[str, int | float | str] = field(default_factory=dict)
+    prev_image: np.ndarray | None = None
+    next_image: np.ndarray | None = None
 
 
 @dataclass(frozen=True)

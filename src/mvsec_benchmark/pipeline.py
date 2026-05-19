@@ -308,6 +308,8 @@ def run_torch_train_eval_benchmark(
     wandb_run_name: str | None = None,
     wandb_mode: str | None = None,
     metric_scope: str = "full_gt_valid",
+    photometric_weight: float = 0.0,
+    smoothness_weight: float = 0.0,
 ) -> BenchmarkResult:
     """Train on one set of MVSEC windows and evaluate on a separate set.
 
@@ -332,6 +334,10 @@ def run_torch_train_eval_benchmark(
         raise ValueError("early_stop_val_windows must leave at least one training window.")
     if metric_scope not in {"full_gt_valid", "event_valid", "matrixlstm_paperlike"}:
         raise ValueError("metric_scope must be 'full_gt_valid', 'event_valid', or 'matrixlstm_paperlike'.")
+    if photometric_weight < 0:
+        raise ValueError("photometric_weight must be >= 0.")
+    if smoothness_weight < 0:
+        raise ValueError("smoothness_weight must be >= 0.")
 
     try:
         import torch
@@ -404,6 +410,8 @@ def run_torch_train_eval_benchmark(
                 "early_stop_val_windows": early_stop_val_windows,
                 "early_stop_val_strategy": early_stop_val_strategy,
                 "metric_scope": metric_scope,
+                "photometric_weight": photometric_weight,
+                "smoothness_weight": smoothness_weight,
                 "train_windows": len(effective_train_samples),
                 "val_windows": len(val_samples),
                 "eval_windows": len(eval_samples),
@@ -417,7 +425,8 @@ def run_torch_train_eval_benchmark(
         f"[setup] adapter={adapter_name} train_windows={len(effective_train_samples)} "
         f"val_windows={len(val_samples)} eval_windows={len(eval_samples)} "
         f"val_strategy={early_stop_val_strategy if val_samples else 'none'} "
-        f"metric_scope={metric_scope}"
+        f"metric_scope={metric_scope} photometric_weight={photometric_weight} "
+        f"smoothness_weight={smoothness_weight}"
     )
     _progress("[setup] building first representation")
     first_rep = adapter.build(effective_train_samples[0].events, effective_train_samples[0].sensor_size)
@@ -425,8 +434,55 @@ def run_torch_train_eval_benchmark(
     model = EVFlowNetLike(in_channels=channels, base_channels=base_channels).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    def _make_batch(samples: list[FlowWindowSample], indices: object, *, phase: str, total: int) -> tuple[object, object]:
+    def _image_chw(image: np.ndarray) -> np.ndarray:
+        image_arr = np.asarray(image, dtype=np.float32)
+        if image_arr.ndim == 2:
+            image_arr = image_arr[None, :, :]
+        elif image_arr.ndim == 3:
+            image_arr = np.moveaxis(image_arr, -1, 0)
+            if image_arr.shape[0] != 1:
+                image_arr = image_arr.mean(axis=0, keepdims=True)
+        else:
+            raise ValueError(f"Expected 2D or 3D image, got shape {image_arr.shape}.")
+        return image_arr
+
+    def _warp_next_to_prev(next_image: object, flow: object) -> object:
+        batch, _, height, width = flow.shape
+        ys, xs = torch.meshgrid(
+            torch.arange(height, device=flow.device, dtype=flow.dtype),
+            torch.arange(width, device=flow.device, dtype=flow.dtype),
+            indexing="ij",
+        )
+        sample_x = xs.unsqueeze(0) + flow[:, 0]
+        sample_y = ys.unsqueeze(0) + flow[:, 1]
+        grid_x = 2.0 * sample_x / max(width - 1, 1) - 1.0
+        grid_y = 2.0 * sample_y / max(height - 1, 1) - 1.0
+        grid = torch.stack((grid_x, grid_y), dim=-1)
+        warped = F.grid_sample(next_image, grid, mode="bilinear", padding_mode="border", align_corners=True)
+        return warped
+
+    def _photometric_warp_loss(pred_flow: object, prev_image: object | None, next_image: object | None) -> object:
+        if prev_image is None or next_image is None:
+            raise ValueError("photometric_weight requires samples with prev_image and next_image.")
+        warped_next = _warp_next_to_prev(next_image, pred_flow)
+        return F.l1_loss(warped_next, prev_image)
+
+    def _flow_smoothness_loss(pred_flow: object) -> object:
+        dx = torch.abs(pred_flow[:, :, :, 1:] - pred_flow[:, :, :, :-1]).mean()
+        dy = torch.abs(pred_flow[:, :, 1:, :] - pred_flow[:, :, :-1, :]).mean()
+        return dx + dy
+
+    def _make_batch(
+        samples: list[FlowWindowSample],
+        indices: object,
+        *,
+        phase: str,
+        total: int,
+    ) -> tuple[object, object, object | None, object | None]:
         reps: list[np.ndarray] = []
+        prev_images: list[np.ndarray] = []
+        next_images: list[np.ndarray] = []
+        has_images = True
         for raw_idx in indices:
             idx = int(raw_idx)
             if phase == "train" and idx == 0:
@@ -434,12 +490,27 @@ def run_torch_train_eval_benchmark(
             else:
                 rep = adapter.build(samples[idx].events, samples[idx].sensor_size)
             reps.append(rep)
+            if samples[idx].prev_image is None or samples[idx].next_image is None:
+                has_images = False
+            else:
+                prev_images.append(_image_chw(samples[idx].prev_image))
+                next_images.append(_image_chw(samples[idx].next_image))
             current = idx + 1
             if progress_every and (current == 1 or current == total or current % progress_every == 0):
                 _progress(f"[{phase}] built representation {current}/{total}")
         x_np = np.stack(reps, axis=0)
         y_np = np.stack([np.moveaxis(samples[int(i)].gt_flow, -1, 0) for i in indices], axis=0)
-        return torch.from_numpy(x_np).float().to(device), torch.from_numpy(y_np).float().to(device)
+        prev_batch = None
+        next_batch = None
+        if has_images:
+            prev_batch = torch.from_numpy(np.stack(prev_images, axis=0)).float().to(device)
+            next_batch = torch.from_numpy(np.stack(next_images, axis=0)).float().to(device)
+        return (
+            torch.from_numpy(x_np).float().to(device),
+            torch.from_numpy(y_np).float().to(device),
+            prev_batch,
+            next_batch,
+        )
 
     def _evaluate_samples(
         samples: list[FlowWindowSample],
@@ -459,7 +530,7 @@ def run_torch_train_eval_benchmark(
             for start in range(0, len(samples), eval_batch):
                 stop = min(start + eval_batch, len(samples))
                 idx = list(range(start, stop))
-                x_batch, _ = _make_batch(samples, idx, phase=phase, total=len(samples))
+                x_batch, _, _, _ = _make_batch(samples, idx, phase=phase, total=len(samples))
                 pred_batch = model(x_batch).detach().cpu().numpy()
                 for offset, pred in enumerate(pred_batch):
                     eval_index = start + offset
@@ -502,9 +573,18 @@ def run_torch_train_eval_benchmark(
         epoch_batches = 0
         for start in range(0, num_train, batch_size):
             idx = perm[start:start + batch_size].tolist()
-            x_batch, y_batch = _make_batch(effective_train_samples, idx, phase="train", total=num_train)
+            x_batch, y_batch, prev_batch, next_batch = _make_batch(
+                effective_train_samples,
+                idx,
+                phase="train",
+                total=num_train,
+            )
             pred = model(x_batch)
             loss = F.smooth_l1_loss(pred, y_batch)
+            if photometric_weight:
+                loss = loss + float(photometric_weight) * _photometric_warp_loss(pred, prev_batch, next_batch)
+            if smoothness_weight:
+                loss = loss + float(smoothness_weight) * _flow_smoothness_loss(pred)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
