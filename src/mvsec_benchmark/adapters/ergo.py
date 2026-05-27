@@ -105,7 +105,7 @@ class ErgoAdapter:
 
     This follows the published optimized-representation recipe from the upstream
     repo, but implemented without torch_scatter so it can run locally in the
-    benchmark scaffold.
+    shared V9 benchmark.
     """
 
     spec: AdapterSpec

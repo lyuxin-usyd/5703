@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterator
 
+import h5py
 import numpy as np
 
 from .data.mvsec import FlowWindowSample, infer_sensor_size, load_mvsec_events, load_mvsec_flow_data
@@ -169,6 +170,162 @@ def iter_matrixlstm_paperlike_windows(
             break
 
 
+def _load_image_sequence(image_h5_path: str | Path) -> tuple[np.ndarray, np.ndarray]:
+    with h5py.File(image_h5_path, "r") as h5:
+        if "timestamps" not in h5 or "images" not in h5:
+            raise KeyError("Image HDF5 must contain 'timestamps' and 'images' datasets.")
+        timestamps = np.asarray(h5["timestamps"], dtype=np.float64)
+        images = np.asarray(h5["images"])
+    if images.ndim not in {3, 4}:
+        raise ValueError(f"Expected image dataset shape (N,H,W) or (N,H,W,C), got {images.shape}.")
+    if len(timestamps) != images.shape[0]:
+        raise ValueError(
+            f"Image timestamp count {len(timestamps)} does not match image count {images.shape[0]}."
+        )
+    order = np.argsort(timestamps, kind="stable")
+    if np.any(order != np.arange(len(timestamps))):
+        timestamps = timestamps[order]
+        images = images[order]
+    return timestamps, images
+
+
+def _as_float_image(image: np.ndarray, *, image_scale: str = "unit") -> np.ndarray:
+    arr = np.asarray(image, dtype=np.float32)
+    if arr.ndim == 3:
+        if arr.shape[-1] == 1:
+            arr = arr[..., 0]
+        elif arr.shape[-1] == 3:
+            arr = arr.mean(axis=-1)
+        else:
+            raise ValueError(f"Unsupported image channel shape: {arr.shape}")
+    if arr.ndim != 2:
+        raise ValueError(f"Expected grayscale image, got shape {arr.shape}")
+    image_scale = image_scale.lower()
+    if image_scale not in {"unit", "raw255"}:
+        raise ValueError("image_scale must be 'unit' or 'raw255'.")
+    if image_scale == "unit" and arr.size and float(arr.max()) > 1.5:
+        arr = arr / 255.0
+    return arr.astype(np.float32, copy=False)
+
+
+def make_matrixlstm_image_pair_sample_from_arrays(
+    events_arr: np.ndarray,
+    flow: np.ndarray,
+    flow_timestamps: np.ndarray,
+    image_timestamps: np.ndarray,
+    images: np.ndarray,
+    *,
+    image_idx: int,
+    image_stride: int,
+    sensor_size: tuple[int, int],
+    image_scale: str = "unit",
+    window_index: int = 0,
+    boundary_eps: float | None = None,
+) -> FlowWindowSample | None:
+    if image_stride < 1:
+        raise ValueError("image_stride must be >= 1.")
+    if image_idx < image_stride or image_idx >= len(image_timestamps):
+        return None
+
+    event_t = events_arr[:, 2]
+    start_t = float(image_timestamps[image_idx - image_stride])
+    end_t = float(image_timestamps[image_idx])
+    if end_t <= start_t:
+        return None
+    if boundary_eps is None:
+        boundary_eps = max(1e-9, _median_positive_dt(flow_timestamps) * 1e-9)
+
+    start = int(np.searchsorted(event_t, start_t + boundary_eps, side="right"))
+    end = int(np.searchsorted(event_t, end_t + boundary_eps, side="right"))
+    if end <= start:
+        return None
+
+    gt = estimate_corresponding_gt_flow(flow, flow_timestamps, start_t, end_t)
+    window_events = events_arr[start:end].astype(np.float64, copy=False)
+    if not np.any(event_gt_valid_mask(window_events, gt, sensor_size)):
+        return None
+
+    return FlowWindowSample(
+        events=window_events,
+        gt_flow=gt,
+        sensor_size=sensor_size,
+        meta={
+            "alignment": "matrixlstm_image_pair",
+            "window_index": int(window_index),
+            "image_start_index": int(image_idx - image_stride),
+            "image_end_index": int(image_idx),
+            "image_stride": int(image_stride),
+            "event_start": start,
+            "event_end": end,
+            "event_start_time": float(start_t),
+            "event_end_time": float(end_t),
+        },
+        prev_image=_as_float_image(images[image_idx - image_stride], image_scale=image_scale),
+        next_image=_as_float_image(images[image_idx], image_scale=image_scale),
+    )
+
+
+def iter_matrixlstm_image_pair_windows(
+    events: np.ndarray,
+    gt_flow: np.ndarray,
+    flow_timestamps: np.ndarray,
+    image_timestamps: np.ndarray,
+    images: np.ndarray,
+    *,
+    sensor_size: tuple[int, int] | None = None,
+    max_windows: int | None = None,
+    image_stride: int = 1,
+    image_scale: str = "unit",
+) -> Iterator[FlowWindowSample]:
+    """Yield image-pair windows for the MatrixLSTM/EV-FlowNet loss probe.
+
+    The original MatrixLSTM training path associates events with pairs of
+    grayscale frames. This helper keeps that image-pair structure while still
+    using the existing dense GT-flow propagation for supervised comparison.
+    """
+    if image_stride < 1:
+        raise ValueError("image_stride must be >= 1.")
+    flow = _as_flow_sequence(gt_flow)
+    timestamps = np.asarray(flow_timestamps, dtype=np.float64)
+    image_t = np.asarray(image_timestamps, dtype=np.float64)
+    if len(image_t) != images.shape[0]:
+        raise ValueError("Image timestamps must match image count.")
+    if len(image_t) <= image_stride:
+        return
+
+    sensor_size = infer_sensor_size(events) if sensor_size is None else sensor_size
+    events_arr = np.asarray(events, dtype=np.float64)
+    event_t = events_arr[:, 2]
+    if np.any(np.diff(event_t) < 0):
+        order = np.argsort(event_t, kind="stable")
+        events_arr = events_arr[order]
+        event_t = event_t[order]
+
+    median_dt = _median_positive_dt(timestamps)
+    boundary_eps = max(1e-9, median_dt * 1e-9)
+    n_yielded = 0
+    for image_idx in range(image_stride, len(image_t)):
+        sample = make_matrixlstm_image_pair_sample_from_arrays(
+            events_arr,
+            flow,
+            timestamps,
+            image_t,
+            images,
+            image_idx=image_idx,
+            image_stride=image_stride,
+            sensor_size=sensor_size,
+            image_scale=image_scale,
+            window_index=n_yielded,
+            boundary_eps=boundary_eps,
+        )
+        if sample is None:
+            continue
+        yield sample
+        n_yielded += 1
+        if max_windows is not None and n_yielded >= max_windows:
+            break
+
+
 def load_matrixlstm_paperlike_windows(
     h5_path: str | Path,
     flow_path: str | Path,
@@ -192,3 +349,104 @@ def load_matrixlstm_paperlike_windows(
             max_windows=max_windows,
         )
     )
+
+
+def load_matrixlstm_image_pair_windows(
+    h5_path: str | Path,
+    flow_path: str | Path,
+    image_h5_path: str | Path,
+    *,
+    sensor_size: tuple[int, int] | None = None,
+    max_windows: int | None = None,
+    image_stride: int = 1,
+    image_scale: str = "unit",
+) -> list[FlowWindowSample]:
+    events = load_mvsec_events(h5_path)
+    flow_data = load_mvsec_flow_data(flow_path)
+    if flow_data.timestamps is None:
+        raise ValueError("Image-pair paper-like windows require flow timestamps.")
+    image_timestamps, images = _load_image_sequence(image_h5_path)
+    gt_flow = flow_data.flow
+    if sensor_size is None:
+        sensor_size = gt_flow.shape[:2] if gt_flow.ndim == 3 else gt_flow.shape[1:3]
+    return list(
+        iter_matrixlstm_image_pair_windows(
+            events,
+            gt_flow,
+            flow_data.timestamps,
+            image_timestamps,
+            images,
+            sensor_size=sensor_size,
+            max_windows=max_windows,
+            image_stride=image_stride,
+            image_scale=image_scale,
+        )
+    )
+
+
+def load_matrixlstm_lazy_random_image_pair_windows(
+    h5_path: str | Path,
+    flow_path: str | Path,
+    image_h5_path: str | Path,
+    *,
+    sensor_size: tuple[int, int] | None = None,
+    max_windows: int | None = None,
+    image_stride_min: int = 1,
+    image_stride_max: int = 5,
+    image_scale: str = "unit",
+) -> list[FlowWindowSample]:
+    if image_stride_min < 1 or image_stride_max < image_stride_min:
+        raise ValueError("image_stride_min/max must define a positive inclusive range.")
+    events = load_mvsec_events(h5_path)
+    flow_data = load_mvsec_flow_data(flow_path)
+    if flow_data.timestamps is None:
+        raise ValueError("Image-pair paper-like windows require flow timestamps.")
+    image_timestamps, images = _load_image_sequence(image_h5_path)
+    flow = _as_flow_sequence(flow_data.flow)
+    timestamps = np.asarray(flow_data.timestamps, dtype=np.float64)
+    if sensor_size is None:
+        sensor_size = flow.shape[:2] if flow.ndim == 3 else flow.shape[1:3]
+
+    events_arr = np.asarray(events, dtype=np.float64)
+    event_t = events_arr[:, 2]
+    if np.any(np.diff(event_t) < 0):
+        order = np.argsort(event_t, kind="stable")
+        events_arr = events_arr[order]
+        event_t = event_t[order]
+
+    boundary_eps = max(1e-9, _median_positive_dt(timestamps) * 1e-9)
+    samples: list[FlowWindowSample] = []
+    for image_idx in range(image_stride_max, len(image_timestamps)):
+        sample = make_matrixlstm_image_pair_sample_from_arrays(
+            events_arr,
+            flow,
+            timestamps,
+            image_timestamps,
+            images,
+            image_idx=image_idx,
+            image_stride=1,
+            sensor_size=sensor_size,
+            image_scale=image_scale,
+            window_index=len(samples),
+            boundary_eps=boundary_eps,
+        )
+        if sample is None:
+            continue
+        sample.meta.update(
+            {
+                "lazy_random_stride": 1,
+                "lazy_stride_min": int(image_stride_min),
+                "lazy_stride_max": int(image_stride_max),
+                "lazy_events_arr": events_arr,
+                "lazy_flow": flow,
+                "lazy_flow_timestamps": timestamps,
+                "lazy_image_timestamps": image_timestamps,
+                "lazy_images": images,
+                "lazy_image_scale": image_scale,
+                "lazy_boundary_eps": float(boundary_eps),
+            }
+        )
+        samples.append(sample)
+        if max_windows is not None and len(samples) >= max_windows:
+            break
+    return samples

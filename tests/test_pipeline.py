@@ -332,6 +332,202 @@ class PipelineTest(unittest.TestCase):
             self.assertGreaterEqual(len(lines), 2)
             self.assertEqual(lines[0], "epoch,train_loss,val_aee,best_val_aee,is_best,stale_epochs,early_stopped")
 
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "torch is not installed in this interpreter")
+    def test_torch_train_eval_benchmark_accepts_image_pair_regularizers(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            h5_path, flow_path = write_mock_mvsec_pair(Path(tmpdir), num_events=1000)
+            samples = load_mvsec_windows(
+                h5_path=h5_path,
+                flow_path=flow_path,
+                window_size=200,
+                stride=200,
+                max_windows=4,
+            )
+            import numpy as np
+
+            for sample in samples:
+                height, width = sample.sensor_size
+                sample.meta["sequence"] = "indoor_flying1"
+                object.__setattr__(sample, "prev_image", np.zeros((height, width), dtype=np.float32))
+                object.__setattr__(sample, "next_image", np.zeros((height, width), dtype=np.float32))
+
+            result = run_torch_train_eval_benchmark(
+                samples[:3],
+                samples[3:],
+                adapter_name="est",
+                epochs=1,
+                base_channels=4,
+                batch_size=2,
+                eval_batch_size=1,
+                device="cpu",
+                progress_every=0,
+                learning_rate=3e-4,
+                photometric_weight=1.0,
+                smoothness_weight=0.5,
+                photometric_loss="evflownet",
+                photometric_charbonnier_alpha=0.45,
+                smoothness_mode="evflownet_8conn",
+                lr_schedule="evflownet",
+                lr_decay=0.9,
+                weight_decay=1e-4,
+            )
+            self.assertEqual(result.train_windows, 3)
+            self.assertEqual(result.eval_windows, 1)
+            self.assertGreater(result.valid_count, 0)
+            self.assertIsNotNone(result.per_sequence_metrics)
+            self.assertIn("indoor_flying1", result.per_sequence_metrics or {})
+
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "torch is not installed in this interpreter")
+    def test_torch_train_eval_benchmark_accepts_multiscale_self_supervised(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            h5_path, flow_path = write_mock_mvsec_pair(Path(tmpdir), num_events=1000)
+            samples = load_mvsec_windows(
+                h5_path=h5_path,
+                flow_path=flow_path,
+                window_size=200,
+                stride=200,
+                max_windows=4,
+            )
+            import numpy as np
+
+            for sample in samples:
+                height, width = sample.sensor_size
+                sample.meta["sequence"] = "indoor_flying1"
+                object.__setattr__(sample, "prev_image", np.zeros((height, width), dtype=np.float32))
+                object.__setattr__(sample, "next_image", np.zeros((height, width), dtype=np.float32))
+
+            result = run_torch_train_eval_benchmark(
+                samples[:3],
+                samples[3:],
+                adapter_name="est",
+                epochs=1,
+                base_channels=8,
+                model_variant="evflownet_multiscale",
+                training_objective="self_supervised",
+                supervised_weight=0.0,
+                batch_size=2,
+                eval_batch_size=1,
+                device="cpu",
+                progress_every=0,
+                learning_rate=3e-4,
+                photometric_weight=1.0,
+                smoothness_weight=0.5,
+                photometric_loss="evflownet",
+                photometric_use_valid_mask=True,
+                smoothness_mode="evflownet_8conn",
+                lr_schedule="evflownet",
+            )
+            self.assertEqual(result.train_windows, 3)
+            self.assertEqual(result.eval_windows, 1)
+            self.assertGreater(result.valid_count, 0)
+            self.assertIn("indoor_flying1", result.per_sequence_metrics or {})
+
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "torch is not installed in this interpreter")
+    def test_torch_train_eval_benchmark_accepts_batchnorm_crop_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            h5_path, flow_path = write_mock_mvsec_pair(Path(tmpdir), num_events=1200)
+            samples = load_mvsec_windows(
+                h5_path=h5_path,
+                flow_path=flow_path,
+                window_size=200,
+                stride=200,
+                max_windows=5,
+            )
+            import numpy as np
+
+            for sample in samples:
+                height, width = sample.sensor_size
+                sample.meta["sequence"] = "indoor_flying1"
+                object.__setattr__(sample, "prev_image", np.zeros((height, width), dtype=np.float32))
+                object.__setattr__(sample, "next_image", np.zeros((height, width), dtype=np.float32))
+
+            result = run_torch_train_eval_benchmark(
+                samples[:4],
+                samples[4:],
+                adapter_name="est",
+                epochs=1,
+                base_channels=8,
+                model_variant="evflownet_multiscale",
+                training_objective="self_supervised",
+                supervised_weight=0.0,
+                batch_size=2,
+                eval_batch_size=1,
+                device="cpu",
+                progress_every=0,
+                learning_rate=3e-4,
+                photometric_weight=1.0,
+                smoothness_weight=0.5,
+                photometric_loss="evflownet",
+                smoothness_mode="evflownet_8conn",
+                lr_schedule="evflownet",
+                model_batch_norm=True,
+                paper_crop_size=32,
+                paper_train_random_crop=True,
+                paper_random_flip=True,
+                paper_random_rotation_degrees=5.0,
+                metric_scope="evflownet_official",
+            )
+            self.assertEqual(result.train_windows, 4)
+            self.assertEqual(result.eval_windows, 1)
+            self.assertGreater(result.valid_count, 0)
+            self.assertIn("indoor_flying1", result.per_sequence_metrics or {})
+
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "torch is not installed in this interpreter")
+    def test_torch_train_eval_benchmark_exports_checkpoint_and_inference_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            h5_path, flow_path = write_mock_mvsec_pair(root, num_events=1200)
+            samples = load_mvsec_windows(
+                h5_path=h5_path,
+                flow_path=flow_path,
+                window_size=200,
+                stride=200,
+                max_windows=5,
+            )
+            import numpy as np
+
+            for sample in samples:
+                height, width = sample.sensor_size
+                sample.meta["sequence"] = "indoor_flying1"
+                sample.meta["source_h5"] = str(h5_path)
+                sample.meta["source_flow"] = str(flow_path)
+                object.__setattr__(sample, "prev_image", np.zeros((height, width), dtype=np.float32))
+                object.__setattr__(sample, "next_image", np.zeros((height, width), dtype=np.float32))
+
+            artifact_root = root / "artifacts" / "est"
+            result = run_torch_train_eval_benchmark(
+                samples[:4],
+                samples[4:],
+                adapter_name="est",
+                epochs=1,
+                base_channels=8,
+                model_variant="evflownet_multiscale",
+                training_objective="self_supervised",
+                supervised_weight=0.0,
+                batch_size=2,
+                eval_batch_size=1,
+                device="cpu",
+                progress_every=0,
+                learning_rate=3e-4,
+                photometric_weight=1.0,
+                smoothness_weight=0.5,
+                photometric_loss="evflownet",
+                smoothness_mode="evflownet_8conn",
+                lr_schedule="evflownet",
+                checkpoint_path=artifact_root / "best_checkpoint.pt",
+                inference_dir=artifact_root / "inference",
+                inference_sample_indices=[0],
+                inference_manifest_path=artifact_root / "sample_manifest.csv",
+            )
+            self.assertEqual(result.checkpoint_path, str(artifact_root / "best_checkpoint.pt"))
+            self.assertTrue((artifact_root / "best_checkpoint.pt").exists())
+            self.assertTrue((artifact_root / "sample_manifest.csv").exists())
+            exported_samples = list((artifact_root / "inference").glob("sample_*"))
+            self.assertEqual(len(exported_samples), 1)
+            self.assertTrue((exported_samples[0] / "pred_flow.npz").exists())
+            self.assertTrue((exported_samples[0] / "pred_flow.png").exists())
+            self.assertTrue((exported_samples[0] / "sample_meta.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

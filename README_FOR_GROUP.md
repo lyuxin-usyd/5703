@@ -1,104 +1,56 @@
 # Optical Flow Folder Guide
 
-This folder is the optical-flow part of the benchmark group work. It contains
-the MVSEC adapted reproduction benchmark code, the shared downstream pipeline,
-and the scripts needed to rerun the six local event-representation methods.
+This folder is the optical-flow part of the benchmark group work. The current
+formal optical-flow package has only two V9 result parts:
 
-## What Is Inside
+```text
+results/learning-base/
+results/baseline/
+```
 
-- `src/`: benchmark package code, including MVSEC loading, representation
-  adapters, metrics, and the shared optical-flow training/evaluation pipeline.
-- `scripts/`: MVSEC conversion helpers, alignment checks, the main benchmark
-  runner, and post-run table/figure generation.
-- `docs/`: project status, environment notes, adapter status, and rerun notes.
-- `configs/envs/`: per-method dependency lists.
-- `tests/`: synthetic tests for the pipeline and data handling.
+`learning-base` contains the six learned representation methods. `baseline`
+contains the traditional representations run under the same V9 protocol.
 
-The old result tables, figures, and archived JSON/log artifacts were removed
-after a data/alignment issue was found. New result artifacts should be committed
-only after the corrected rerun is complete.
+## Main Method Code
 
-## Current Formal Protocol
+```text
+scripts/
+src/mvsec_benchmark/
+configs/envs/
+```
+
+Use `README.md` for method details and `results/learning-base/summary.md` for
+the learned-method result notes.
+
+## Current Protocol
 
 - train: `outdoor_day1 + outdoor_day2`
 - eval: `indoor_flying1 + indoor_flying2 + indoor_flying3`
 - event input: 6M extracted left-camera events per sequence
-- flow GT: generated flow files with timestamps
-- important data check: `indoor_flying1_gt_flow_2000.npz` should have 1398
-  flow frames
-- event HDF5 check: timestamp column should be float64. Older processed event
-  files with float32 Unix timestamps should be regenerated from raw bags.
-- decoder: shared `EVFlowNetLike`
-- training: max 100 epochs, batch size 8, early-stop patience 10
-- validation: block-random outdoor validation
-- event/flow pairing: timestamp-aligned event intervals from flow GT timestamps
-- metrics: event-valid AEE / KITTI-style Outlier, evaluated only on pixels that
-  fired at least one event in the corresponding event window
-- runnable methods: `ergo`, `est`, `event_pretraining`, `evrepsl`, `get`,
-  `matrixlstm`
+- image input: aligned image H5 files
+- decoder: EV-FlowNet-style multi-scale decoder
+- objective: photometric warping + smoothness
+- training: max 100 epochs, batch size 8, patience 10
+- metrics: AEE / KITTI-style Outlier over valid GT flow pixels
 
-This is a unified downstream optical-flow benchmark / adapted reproduction, not
-a paper-identical rerun of every original optical-flow codebase.
+## Latest Result Files
 
-## Rerun Checks
+```text
+results/learning-base/summary.csv
+results/learning-base/per_sequence_summary.csv
+results/learning-base/validation_aee_curves.png
 
-Run the alignment checker before the long benchmark:
-
-```bash
-python scripts/check_mvsec_alignment.py --data-root /path/to/processed/mvsec
-```
-
-The checker should confirm that flow timestamps are covered by the event
-timestamp range and that event timestamps have enough unique values. It is
-designed to run before training and does not require a GPU. It should also make
-it obvious if `indoor_flying1` has the old 20-frame GT file instead of the
-corrected 1398-frame file.
-
-Main run:
-
-```bash
-DATA_ROOT=/path/to/processed/mvsec \
-OMP_NUM_THREADS=8 \
-BATCH_SIZE=8 \
-bash scripts/run_mvsec_100e_all_early_stop.sh
-```
-
-Post-run table and figure generation:
-
-```bash
-python scripts/build_mvsec_e100_outputs.py \
-  --results-dir results \
-  --curve-dir logs/curves \
-  --summary-dir results/summary \
-  --figures-dir results/figures
+results/baseline/summary.csv
+results/baseline/per_sequence_summary.csv
+results/baseline/validation_aee_curves.png
 ```
 
 ## Most Important Entry Points
 
 - `README.md`
-- `docs/PROJECT_STATUS.md`
-- `docs/GPU_RERUN_INSTRUCTIONS.md`
-- `scripts/check_mvsec_alignment.py`
-- `scripts/run_original_protocol.py`
-- `scripts/run_mvsec_100e_all_early_stop.sh`
-- `scripts/build_mvsec_e100_outputs.py`
+- `scripts/run_photometric_full_6methods_e100.sh`
+- `src/mvsec_benchmark/`
+- `results/learning-base/`
+- `results/baseline/`
 
-## Wording To Use
-
-Use:
-
-```text
-MVSEC unified downstream optical-flow benchmark / adapted reproduction.
-Six runnable event representations are compared under the same EVFlowNet-like
-decoder and the same outdoor-train / indoor-test protocol.
-Event windows use timestamp-aligned intervals from flow GT timestamps.
-Formal results report event-valid sparse-flow AEE / Outlier.
-```
-
-Avoid:
-
-```text
-Fully reproduced every paper's original optical-flow decoder/head.
-Official paper-number comparison.
-Treating OmniEvent✳ as a local run.
-```
+Raw MVSEC data and processed training files are not committed to GitHub.

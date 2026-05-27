@@ -1,0 +1,116 @@
+﻿{
+    "adapter_name":  "timestamp_image",
+    "aee":  1.8271096111978513,
+    "best_epoch":  24,
+    "best_val_aee":  0.9627037581801414,
+    "channels":  2,
+    "curve_log_path":  "curves/v9_timestamp_image_20260521_231932.csv",
+    "curve_log_requested":  "curves/v9_timestamp_image_20260521_231932.csv",
+    "early_stop_min_delta":  0.001,
+    "early_stop_patience":  10,
+    "early_stop_val_source_counts":  {
+                                         "D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day1_left_events_6m.h5":  60,
+                                         "D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day2_left_events_6m.h5":  40
+                                     },
+    "early_stop_val_strategy":  "block-random",
+    "early_stop_val_strategy_requested":  "block-random",
+    "early_stop_val_windows":  100,
+    "early_stop_val_windows_requested":  100,
+    "early_stopped":  true,
+    "epochs_completed":  34,
+    "eval_image_h5s":  [
+                           "D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying1_left_images_full.h5",
+                           "D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying2_left_images_full.h5",
+                           "D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying3_left_images_full.h5"
+                       ],
+    "eval_sets":  [
+                      "D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying1_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying1_gt_flow_full.npz",
+                      "D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying2_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying2_gt_flow_full.npz",
+                      "D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying3_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying3_gt_flow_full.npz"
+                  ],
+    "eval_windows":  2589,
+    "gradient_clip_norm":  null,
+    "image_scale":  "raw255",
+    "image_stride":  1,
+    "included_losses":  [
+                            "image_pair_photometric_warping_evflownet",
+                            "flow_smoothness_evflownet_8conn"
+                        ],
+    "lazy_random_train_stride":  true,
+    "lr_decay":  0.9,
+    "lr_schedule":  "evflownet",
+    "max_eval_windows_per_set":  null,
+    "max_train_windows_per_set":  null,
+    "metric_scope":  "evflownet_official",
+    "metric_scope_requested":  "evflownet_official",
+    "min_lr":  0.0,
+    "model_batch_norm":  true,
+    "model_variant":  "evflownet_multiscale",
+    "not_full_original_reproduction":  true,
+    "not_yet_included":  [
+                             "original TensorFlow runtime/checkpoint",
+                             "census transform photometric loss",
+                             "TFRecord loader based on grayscale frame pairs"
+                         ],
+    "outlier_percent":  15.254399834756473,
+    "paper_crop_size":  256,
+    "paper_random_flip":  true,
+    "paper_random_rotation_degrees":  30.0,
+    "paper_train_random_crop":  true,
+    "per_sequence_metrics":  {
+                                 "indoor_flying1":  {
+                                                        "aee":  1.6049429379127644,
+                                                        "outlier_count":  504276,
+                                                        "outlier_percent":  9.686441352151713,
+                                                        "valid_count":  3584763,
+                                                        "windows":  945
+                                                    },
+                                 "indoor_flying2":  {
+                                                        "aee":  2.264557764458824,
+                                                        "outlier_count":  1631941,
+                                                        "outlier_percent":  24.70615152163895,
+                                                        "valid_count":  3811246,
+                                                        "windows":  710
+                                                    },
+                                 "indoor_flying3":  {
+                                                        "aee":  1.719357274408897,
+                                                        "outlier_count":  901054,
+                                                        "outlier_percent":  13.70298341974034,
+                                                        "valid_count":  3672997,
+                                                        "windows":  934
+                                                    }
+                             },
+    "photometric_charbonnier_alpha":  0.45,
+    "photometric_charbonnier_epsilon":  0.001,
+    "photometric_loss":  "evflownet",
+    "photometric_ssim_weight":  0.0,
+    "photometric_valid_mask":  false,
+    "photometric_weight":  1.0,
+    "probe_scope":  "v9_optical_flow_protocol",
+    "progress_every":  50,
+    "random_train_stride_per_epoch":  true,
+    "smoothness_edge_weight":  10.0,
+    "smoothness_mode":  "evflownet_8conn",
+    "smoothness_weight":  0.5,
+    "supervised_weight":  0.0,
+    "train_image_h5s":  [
+                            "D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day1_left_images_full.h5",
+                            "D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day2_left_images_full.h5"
+                        ],
+    "train_image_strides":  [
+                                1,
+                                2,
+                                3,
+                                4,
+                                5
+                            ],
+    "train_sets":  [
+                       "D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day1_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day1_gt_flow_full.npz",
+                       "D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day2_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day2_gt_flow_full.npz"
+                   ],
+    "train_windows":  728,
+    "training_objective":  "self_supervised",
+    "valid_count":  11069006,
+    "warmup_epochs":  0,
+    "weight_decay":  0.0001
+}

@@ -1,0 +1,6 @@
+﻿method,aee,outlier_percent,best_val_aee,best_epoch,epochs_completed,early_stopped,train_windows,eval_windows,metric_scope,file
+event_frame,1.861484447516452,16.79264280209509,0.9267780989408493,24,34,True,728,2589,evflownet_official,results/v9_event_frame_20260521_221230.json
+binary_event_image,1.699271168276328,14.675008176496648,0.6644936469197273,44,54,True,728,2589,evflownet_official,results/v9_binary_event_image_20260521_223933.json
+timestamp_image,1.8271096111978513,15.254399834756473,0.9627037581801414,24,34,True,728,2589,evflownet_official,results/v9_timestamp_image_20260521_231932.json
+time_surface,1.7233662561744785,15.16741290262489,0.7380322632193566,24,34,True,728,2589,evflownet_official,results/v9_time_surface_20260521_234609.json
+voxel_grid,1.5476171140817658,10.913436190323996,0.8996134144067764,29,39,True,728,2589,evflownet_official,results/v9_voxel_grid_20260522_001202.json

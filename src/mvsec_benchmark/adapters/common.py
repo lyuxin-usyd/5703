@@ -18,10 +18,7 @@ def voxel_count_representation(
     time_bins: int,
     split_polarity: bool = True,
 ) -> np.ndarray:
-    """Simple event voxelization used as a placeholder adapter backend.
-
-    This is benchmark scaffolding, not a faithful implementation of each paper.
-    """
+    """Event voxelization backend shared by several V9 adapters."""
     height, width = sensor_size
     channels = time_bins * (2 if split_polarity else 1)
     rep = np.zeros((channels, height, width), dtype=np.float32)
@@ -57,7 +54,7 @@ def recurrent_surface_representation(
     tau: float = 0.25,
     channels: int = 4,
 ) -> np.ndarray:
-    """Small recurrent-surface approximation for MatrixLSTM placeholder work."""
+    """Small recurrent-surface backend for the MatrixLSTM adapter."""
     height, width = sensor_size
     rep = np.zeros((channels, height, width), dtype=np.float32)
     if events.size == 0:

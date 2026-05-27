@@ -1,123 +1,134 @@
 # MVSEC Optical Flow Benchmark
 
 This folder contains the optical-flow part of the COMP5703 benchmark group
-work. It implements a unified downstream benchmark on MVSEC for six runnable
-event representations, all evaluated with the same EVFlowNet-like decoder.
+work. The current formal optical-flow package is V9.
 
-This is an adapted reproduction benchmark. It is not a bit-for-bit rerun of
-each paper's original optical-flow decoder, training stack, or private
-downstream head.
+The repository keeps two V9 result parts:
 
-## Current Status
+```text
+results/
+  learning-base/   six learned representation methods
+  baseline/        five traditional baseline representations
+```
 
-- Dataset: MVSEC optical-flow sequences.
-- Train split: `outdoor_day1 + outdoor_day2`.
-- Test split: `indoor_flying1/2/3`.
-- Runnable methods: `ergo`, `est`, `event_pretraining`, `evrepsl`, `get`,
-  `matrixlstm`.
-- Paper-reference only: OmniEvent, not a local runnable method.
-- Decoder: shared `EVFlowNetLike`.
-- Training protocol: max 100 epochs, batch size 8, early-stop patience 10.
-- Validation: block-random validation sampled from outdoor training windows.
-- Metrics: AEE/EPE and KITTI-style outlier percentage over valid GT flow
-  pixels.
-- Event/flow pairing: timestamp-aligned event intervals from flow GT
-  timestamps.
-- Data correction: event HDF5 timestamps must be stored with float64 precision.
-  Older processed event `.h5` files written with float32 Unix timestamps are not
-  suitable for the formal rerun.
-- Current result state: previous result artifacts were removed after an
-  alignment/data issue was found. New results should be added only after the
-  corrected rerun finishes.
+Both parts use the same MVSEC split and the same V9 photometric/smoothness
+training and evaluation protocol.
 
-## Rerun Protocol
-
-The next formal run should use:
+## Current Protocol
 
 - train: `outdoor_day1 + outdoor_day2`
 - evaluate: `indoor_flying1 + indoor_flying2 + indoor_flying3`
 - event input: 6M extracted left-camera events per sequence
-- flow GT: generated flow files with timestamps
-- `indoor_flying1` GT: corrected 1398-frame
-  `indoor_flying1_gt_flow_2000.npz`
-- event HDF5: regenerated with the current converter so the timestamp column is
-  float64, not float32
-- shared decoder: `src/mvsec_benchmark/models/evflownet_like.py`
-- method list: `ergo`, `est`, `event_pretraining`, `evrepsl`, `get`,
-  `matrixlstm`
-- official metric scope: full valid-GT optical-flow evaluation
+- image input: aligned grayscale image H5 files
+- model: EV-FlowNet-style multi-scale decoder
+- objective: image-pair photometric warping loss + flow smoothness loss
+- training: max 100 epochs, batch size 8, early-stop patience 10
+- validation: block-random outdoor validation
+- train windows: 728
+- eval windows: 2589
+- metrics: AEE and KITTI-style Outlier over valid GT flow pixels
 
-Before launching the long run, use `scripts/check_mvsec_alignment.py` to check
-that each event file covers the corresponding flow timestamps and that event
-timestamps are not collapsed. This is the main guard against repeating the
-earlier wrong-result problem.
+The method code is kept here:
 
-```bash
-python scripts/check_mvsec_alignment.py --data-root /path/to/processed/mvsec
+```text
+scripts/
+src/mvsec_benchmark/
+configs/envs/
 ```
 
-Then run:
+## Result Layout
 
-```bash
-DATA_ROOT=/path/to/processed/mvsec \
-OMP_NUM_THREADS=8 \
-BATCH_SIZE=8 \
-bash scripts/run_mvsec_100e_all_early_stop.sh
+```text
+results/learning-base/
+  summary.csv
+  summary.md
+  per_sequence_summary.csv
+  validation_aee_curves.png
+  best_validation_aee_curves.png
+  curves/
+  results/
+  artifacts/
+
+results/baseline/
+  summary.csv
+  summary.md
+  per_sequence_summary.csv
+  validation_aee_curves.png
+  best_validation_aee_curves.png
+  curves/
+  results/
+  artifacts/
+
+results/figures/
+  mvsec_flow_inference_grid.png
+  mvsec_flow_error_grid.png
 ```
 
-After the run finishes, rebuild the table and figures:
+## Latest Results
 
-```bash
-python scripts/build_mvsec_e100_outputs.py \
-  --results-dir results \
-  --curve-dir logs/curves \
-  --summary-dir results/summary \
-  --figures-dir results/figures
-```
+Learning-base methods:
 
-## Reporting Notes
+| Method | AEE | Outlier % |
+| --- | ---: | ---: |
+| ERGO | 1.3463 | 7.72 |
+| EST | 1.3895 | 8.41 |
+| GET | 1.4039 | 8.51 |
+| MatrixLSTM | 1.4842 | 9.30 |
+| EvRepSL | 1.7607 | 15.14 |
+| Event Pre-training | 1.7844 | 15.63 |
 
-- Describe this as a unified downstream optical-flow benchmark / adapted
-  reproduction.
-- The six runnable event representations use the same EVFlowNet-like decoder
-  and the same train/eval split.
-- Do not directly compare the future local numbers as official-paper
-  reproduction numbers, because several papers do not release the same
-  optical-flow downstream code.
-- Report the formal table as AEE / Outlier over valid GT flow pixels.
-- Treat `OmniEvent✳` as reported-only context, not as a local run in this
-  pipeline.
-- Raw MVSEC data and processed `.h5` / `.npz` data are not committed to GitHub.
+Traditional baseline methods under the same V9 protocol:
+
+| Method | AEE | Outlier % |
+| --- | ---: | ---: |
+| Voxel Grid | 1.5476 | 10.91 |
+| Binary Event Image | 1.6993 | 14.68 |
+| Time Surface | 1.7234 | 15.17 |
+| Timestamp Image | 1.8271 | 15.25 |
+| Event Frame | 1.8615 | 16.79 |
 
 ## Code Layout
 
 ```text
 optical-flow/
 ├── configs/
-│   └── envs/
 ├── docs/
+├── results/
+│   ├── learning-base/
+│   └── baseline/
 ├── scripts/
 ├── src/
 │   └── mvsec_benchmark/
 └── tests/
 ```
 
-Key entry points:
+## Rerun Notes
 
-- `scripts/run_original_protocol.py`
-- `scripts/run_mvsec_100e_all_early_stop.sh`
-- `scripts/check_mvsec_alignment.py`
-- `scripts/build_mvsec_e100_outputs.py`
-- `src/mvsec_benchmark/pipeline.py`
-- `src/mvsec_benchmark/models/evflownet_like.py`
-- `docs/PROJECT_STATUS.md`
-- `docs/GPU_RERUN_INSTRUCTIONS.md`
+Raw MVSEC bags and processed `.h5` / `.npz` files are not committed to GitHub.
+Before rerunning, place processed MVSEC files outside the repository and pass
+their location through `DATA_ROOT`.
 
-## Local Smoke Test
-
-The smoke tests use synthetic/mock data and do not require MVSEC downloads.
+Main V9 runner:
 
 ```bash
-PYTHONPATH=src python -m unittest discover -s tests -p "test_*.py" -v
-python scripts/run_smoke.py
+DATA_ROOT=/path/to/mvsec_full_processed \
+DEVICE=cuda \
+bash scripts/run_photometric_full_6methods_e100.sh
 ```
+
+Traditional baseline representations can be run with the same V9 runner by
+passing method names explicitly:
+
+```bash
+bash scripts/run_photometric_full_6methods_e100.sh \
+  event_frame binary_event_image timestamp_image time_surface voxel_grid
+```
+
+## Reporting Notes
+
+- Use `results/learning-base/summary.csv` for the main optical-flow table.
+- Use `results/baseline/summary.csv` as the V9 baseline comparison table.
+- Use `results/*/artifacts/<method>/` for checkpoints, fixed-sample inference
+  outputs, manifests, and per-method metadata.
+- Do not present these numbers as official paper reproduction numbers; this is
+  a unified V9 downstream benchmark using a shared decoder and protocol.

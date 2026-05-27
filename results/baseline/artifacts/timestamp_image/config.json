@@ -1,0 +1,63 @@
+{
+  "adapter": "timestamp_image",
+  "artifact_package_note": "Curves and training logs are omitted from the GitHub artifact package; use the V9 paper-table summaries already in results/ for reported AEE/Outlier values.",
+  "base_channels": 64,
+  "batch_size": 8,
+  "device": "cuda",
+  "early_stop_min_delta": 0.001,
+  "early_stop_patience": 10,
+  "early_stop_val_strategy": "block-random",
+  "early_stop_val_windows": 100,
+  "epochs": 100,
+  "eval_batch_size": 1,
+  "eval_image_h5": [
+    "DATA_ROOT/indoor_flying/indoor_flying1_left_images_full.h5",
+    "DATA_ROOT/indoor_flying/indoor_flying2_left_images_full.h5",
+    "DATA_ROOT/indoor_flying/indoor_flying3_left_images_full.h5"
+  ],
+  "eval_pair": [
+    "DATA_ROOT/indoor_flying/indoor_flying1_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying1_gt_flow_full.npz",
+    "DATA_ROOT/indoor_flying/indoor_flying2_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying2_gt_flow_full.npz",
+    "DATA_ROOT/indoor_flying/indoor_flying3_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/indoor_flying/indoor_flying3_gt_flow_full.npz"
+  ],
+  "gradient_clip_norm": null,
+  "image_scale": "raw255",
+  "image_stride": 1,
+  "lazy_random_train_stride": true,
+  "lr": 0.0003,
+  "lr_decay": 0.9,
+  "lr_schedule": "evflownet",
+  "metric_scope": "evflownet_official",
+  "min_lr": 0.0,
+  "model_batch_norm": true,
+  "model_variant": "evflownet_multiscale",
+  "paper_crop_size": 256,
+  "paper_random_flip": true,
+  "paper_random_rotation_degrees": 30.0,
+  "paper_train_random_crop": true,
+  "photometric_charbonnier_alpha": 0.45,
+  "photometric_charbonnier_epsilon": 0.001,
+  "photometric_loss": "evflownet",
+  "photometric_ssim_weight": 0.0,
+  "photometric_valid_mask": false,
+  "photometric_weight": 1.0,
+  "random_train_stride_per_epoch": true,
+  "seed": 42,
+  "smoothness_edge_weight": 10.0,
+  "smoothness_mode": "evflownet_8conn",
+  "smoothness_weight": 0.5,
+  "supervised_weight": 0.0,
+  "train_image_h5": [
+    "DATA_ROOT/outdoor_day/outdoor_day1_left_images_full.h5",
+    "DATA_ROOT/outdoor_day/outdoor_day2_left_images_full.h5"
+  ],
+  "train_image_stride_max": 5,
+  "train_image_stride_min": 1,
+  "train_pair": [
+    "DATA_ROOT/outdoor_day/outdoor_day1_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day1_gt_flow_full.npz",
+    "DATA_ROOT/outdoor_day/outdoor_day2_left_events_6m.h5:D:/event-benchmark/data/mvsec_full_processed/outdoor_day/outdoor_day2_gt_flow_full.npz"
+  ],
+  "training_objective": "self_supervised",
+  "warmup_epochs": 0,
+  "weight_decay": 0.0001
+}

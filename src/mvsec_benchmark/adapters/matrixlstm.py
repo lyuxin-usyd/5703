@@ -22,19 +22,21 @@ def _normalize_timestamps(t: np.ndarray) -> np.ndarray:
 class MatrixLSTMAdapter:
     """Per-pixel sequence adapter inspired by MatrixLSTM optical-flow defaults.
 
-    The official optical-flow setup defaults to a 1x1 receptive field and a
-    four-channel output. This adapter keeps that spirit without pulling in the
-    old TensorFlow/CUDA grouping kernels: events are grouped per pixel, ordered
-    in time, and summarized into four dense sequence features that mimic a
-    lightweight recurrent state.
+    The official optical-flow setup uses a 1x1 receptive field. The paper's
+    strongest optical-flow ablation is the two-bin surface, so this adapter
+    emits four recurrent-summary channels per temporal bin: events are grouped
+    per pixel, ordered in time, and summarized into dense sequence features
+    that mimic a lightweight recurrent state.
     """
 
     spec: AdapterSpec
     tau: float = 0.25
+    time_bins: int = 2
 
     def build(self, events: np.ndarray, sensor_size: tuple[int, int]) -> np.ndarray:
         height, width = sensor_size
-        rep = np.zeros((4, height, width), dtype=np.float32)
+        bins = max(int(self.time_bins), 1)
+        rep = np.zeros((4 * bins, height, width), dtype=np.float32)
         if events.size == 0:
             return rep
 
@@ -51,33 +53,51 @@ class MatrixLSTMAdapter:
         if x.size == 0:
             return rep
 
-        pixel_id = y * width + x
-        order = np.lexsort((t, pixel_id))
-        pixel_id = pixel_id[order]
-        t = t[order]
-        p = p[order]
+        if bins == 1:
+            bin_ids = np.zeros_like(t, dtype=np.int64)
+        else:
+            bin_ids = np.minimum((t * bins).astype(np.int64), bins - 1)
 
-        state = np.zeros(height * width, dtype=np.float32)
-        last_t = np.zeros(height * width, dtype=np.float32)
-        delay_sum = np.zeros(height * width, dtype=np.float32)
-        count = np.zeros(height * width, dtype=np.float32)
-        last_p = np.zeros(height * width, dtype=np.float32)
+        for bin_idx in range(bins):
+            in_bin = bin_ids == bin_idx
+            if not np.any(in_bin):
+                continue
 
-        for pid, ti, pi in zip(pixel_id, t, p):
-            dt = float(ti - last_t[pid]) if count[pid] > 0 else 0.0
-            decay = np.exp(-dt / max(self.tau, 1e-6))
-            state[pid] = state[pid] * decay + pi
-            last_t[pid] = float(ti)
-            delay_sum[pid] += dt
-            count[pid] += 1.0
-            last_p[pid] = pi
+            xb = x[in_bin]
+            yb = y[in_bin]
+            tb = t[in_bin]
+            pb = p[in_bin]
+            if bins > 1:
+                start = bin_idx / bins
+                stop = (bin_idx + 1) / bins
+                tb = ((tb - start) / max(stop - start, 1e-6)).astype(np.float32)
+            pixel_id = yb * width + xb
+            order = np.lexsort((tb, pixel_id))
+            pixel_id = pixel_id[order]
+            tb = tb[order]
+            pb = pb[order]
 
-        valid_pixels = count > 0
-        mean_delay = np.zeros_like(delay_sum)
-        mean_delay[valid_pixels] = delay_sum[valid_pixels] / count[valid_pixels]
+            state = np.zeros(height * width, dtype=np.float32)
+            last_t = np.zeros(height * width, dtype=np.float32)
+            delay_sum = np.zeros(height * width, dtype=np.float32)
+            count = np.zeros(height * width, dtype=np.float32)
+            last_p = np.zeros(height * width, dtype=np.float32)
 
-        rep[0] = state.reshape(height, width)
-        rep[1] = last_t.reshape(height, width)
-        rep[2] = mean_delay.reshape(height, width)
-        rep[3] = last_p.reshape(height, width)
+            for pid, ti, pi in zip(pixel_id, tb, pb):
+                dt = float(ti - last_t[pid]) if count[pid] > 0 else 0.0
+                decay = np.exp(-dt / max(self.tau, 1e-6))
+                state[pid] = state[pid] * decay + pi
+                last_t[pid] = float(ti)
+                delay_sum[pid] += dt
+                count[pid] += 1.0
+                last_p[pid] = pi
+
+            valid_pixels = count > 0
+            mean_delay = np.zeros_like(delay_sum)
+            mean_delay[valid_pixels] = delay_sum[valid_pixels] / count[valid_pixels]
+            offset = bin_idx * 4
+            rep[offset + 0] = state.reshape(height, width)
+            rep[offset + 1] = last_t.reshape(height, width)
+            rep[offset + 2] = mean_delay.reshape(height, width)
+            rep[offset + 3] = last_p.reshape(height, width)
         return rep

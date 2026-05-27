@@ -1,2 +1,1 @@
-"""Unified MVSEC benchmark scaffold."""
-
+"""MVSEC optical-flow V9 benchmark package."""
